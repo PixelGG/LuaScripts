@@ -9,7 +9,7 @@
 
 local SyntraUI = {}
 SyntraUI.__index = SyntraUI
-SyntraUI.Version = "6.0.0"
+SyntraUI.Version = "6.1.0"
 
 --// Services
 local Players = game:GetService("Players")
@@ -36,24 +36,24 @@ end
 
 --// Theme tokens
 local Theme = {
-    Background = Color3.fromRGB(9, 10, 14),
-    Surface = Color3.fromRGB(18, 18, 24),
-    SurfaceAlt = Color3.fromRGB(24, 23, 31),
-    Elevated = Color3.fromRGB(31, 29, 40),
-    Field = Color3.fromRGB(13, 14, 20),
+    Background = Color3.fromRGB(8, 9, 12),
+    Surface = Color3.fromRGB(17, 18, 23),
+    SurfaceAlt = Color3.fromRGB(23, 24, 31),
+    Elevated = Color3.fromRGB(29, 30, 38),
+    Field = Color3.fromRGB(11, 12, 16),
 
-    Accent = Color3.fromRGB(177, 137, 68),
-    AccentAlt = Color3.fromRGB(132, 94, 194),
-    AccentSoft = Color3.fromRGB(54, 41, 28),
-    AccentGlow = Color3.fromRGB(238, 195, 112),
+    Accent = Color3.fromRGB(201, 151, 76),
+    AccentAlt = Color3.fromRGB(120, 93, 184),
+    AccentSoft = Color3.fromRGB(47, 34, 22),
+    AccentGlow = Color3.fromRGB(245, 196, 104),
 
-    Border = Color3.fromRGB(72, 66, 80),
-    BorderSoft = Color3.fromRGB(42, 40, 50),
+    Border = Color3.fromRGB(69, 64, 72),
+    BorderSoft = Color3.fromRGB(36, 36, 44),
     Shadow = Color3.fromRGB(0, 0, 0),
 
-    Text = Color3.fromRGB(237, 232, 218),
-    TextMuted = Color3.fromRGB(165, 158, 145),
-    TextDim = Color3.fromRGB(103, 97, 91),
+    Text = Color3.fromRGB(241, 236, 222),
+    TextMuted = Color3.fromRGB(166, 159, 148),
+    TextDim = Color3.fromRGB(105, 99, 91),
 
     Success = Color3.fromRGB(77, 190, 140),
     Warning = Color3.fromRGB(232, 177, 74),
@@ -127,6 +127,16 @@ function Util.Stroke(parent, color, transparency, thickness)
         Transparency = transparency or 0.35,
         Thickness = thickness or 1,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, parent)
+end
+
+function Util.Gradient(parent, colors, rotation)
+    return Util.New("UIGradient", {
+        Color = ColorSequence.new(colors or {
+            ColorSequenceKeypoint.new(0, Theme.SurfaceAlt),
+            ColorSequenceKeypoint.new(1, Theme.Background),
+        }),
+        Rotation = rotation or 90,
     }, parent)
 end
 
@@ -243,7 +253,10 @@ function Util.MakeDraggable(frame, handle)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
         dragging = true
         dragStart = input.Position
-        startOffset = Vector2.new(frame.Position.X.Offset, frame.Position.Y.Offset)
+        local absolute = frame.AbsolutePosition
+        frame.AnchorPoint = Vector2.new(0, 0)
+        frame.Position = UDim2.fromOffset(absolute.X, absolute.Y)
+        startOffset = absolute
     end)
 
     UserInputService.InputChanged:Connect(function(input)
@@ -253,7 +266,7 @@ function Util.MakeDraggable(frame, handle)
         local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
         local delta = input.Position - dragStart
         local x = math.clamp(startOffset.X + delta.X, 8, math.max(8, viewport.X - frame.AbsoluteSize.X - 8))
-        local y = math.clamp(startOffset.Y + delta.Y, 8, math.max(8, viewport.Y - 48))
+        local y = math.clamp(startOffset.Y + delta.Y, 8, math.max(8, viewport.Y - frame.AbsoluteSize.Y - 8))
         frame.Position = UDim2.fromOffset(x, y)
     end)
 
@@ -460,16 +473,21 @@ function SyntraUI:CreateWindow(options)
     Util.Corner(main, 10)
     local mainStroke = Util.Stroke(main, Theme.Border, 0.12)
     Util.Scale(main, minSize, maxSize)
+    Util.Gradient(main, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 18, 24)),
+        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(10, 11, 15)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 9, 12)),
+    }, 90)
 
     local shadow = Util.New("ImageLabel", {
         Name = "Shadow",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = main.Position,
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.fromOffset(0, 0),
         Size = UDim2.fromOffset(42, 42),
         BackgroundTransparency = 1,
         Image = "rbxassetid://1316045217",
         ImageColor3 = Theme.Shadow,
-        ImageTransparency = 0.45,
+        ImageTransparency = 0.34,
         ScaleType = Enum.ScaleType.Slice,
         SliceCenter = Rect.new(10, 10, 118, 118),
         ZIndex = 0,
@@ -477,8 +495,10 @@ function SyntraUI:CreateWindow(options)
 
     local function syncShadow()
         if not (shadow and shadow.Parent) then return end
-        shadow.Position = main.Position
-        shadow.Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset + 42, main.Size.Y.Scale, main.Size.Y.Offset + 42)
+        local pos = main.AbsolutePosition
+        local sizeNow = main.AbsoluteSize
+        shadow.Position = UDim2.fromOffset(pos.X - 21, pos.Y - 21)
+        shadow.Size = UDim2.fromOffset(sizeNow.X + 42, sizeNow.Y + 42)
     end
 
     local runeLine = Util.New("Frame", {
@@ -487,6 +507,11 @@ function SyntraUI:CreateWindow(options)
         BorderSizePixel = 0,
         ZIndex = 5,
     }, main)
+    Util.Gradient(runeLine, {
+        ColorSequenceKeypoint.new(0, Theme.AccentAlt),
+        ColorSequenceKeypoint.new(0.5, Theme.AccentGlow),
+        ColorSequenceKeypoint.new(1, Theme.Accent),
+    }, 0)
 
     local sidebar = Util.New("Frame", {
         Name = "Sidebar",
@@ -495,6 +520,10 @@ function SyntraUI:CreateWindow(options)
         BorderSizePixel = 0,
         ZIndex = 2,
     }, main)
+    Util.Gradient(sidebar, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 24, 31)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 14, 18)),
+    }, 90)
     Util.New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 0),
@@ -575,11 +604,23 @@ function SyntraUI:CreateWindow(options)
         Name = "Topbar",
         Position = UDim2.fromOffset(Metrics.Sidebar, 0),
         Size = UDim2.new(1, -Metrics.Sidebar, 0, Metrics.Topbar),
-        BackgroundColor3 = Theme.Background,
+        BackgroundColor3 = Color3.fromRGB(12, 13, 17),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
         ZIndex = 3,
     }, main)
+    Util.Gradient(topbar, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 20, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 11, 15)),
+    }, 0)
+    Util.New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, 0),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Theme.BorderSoft,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+    }, topbar)
 
     local pageTitle = Util.Text(topbar, {
         Text = "Dashboard",
@@ -616,6 +657,7 @@ function SyntraUI:CreateWindow(options)
 
     local minimizeButton = titleButton("-", -70)
     local closeButton = titleButton("x", -36)
+    closeButton.TextColor3 = Theme.Error
 
     local content = Util.New("Frame", {
         Name = "Content",
@@ -808,7 +850,7 @@ function SyntraUI:CreateWindow(options)
         tab.Button = Util.Button(tabsList, {
             Text = "  " .. tab.Name,
             Size = UDim2.new(1, 0, 0, 36),
-            BackgroundColor3 = Theme.Surface,
+            BackgroundColor3 = Color3.fromRGB(15, 16, 21),
             TextColor3 = Theme.TextMuted,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 5,
@@ -831,12 +873,12 @@ function SyntraUI:CreateWindow(options)
         end)
         tab.Button.MouseEnter:Connect(function()
             if window.CurrentTab ~= tab then
-                Util.Tween(tab.Button, { BackgroundColor3 = Theme.SurfaceAlt }, 0.1)
+                Util.Tween(tab.Button, { BackgroundColor3 = Color3.fromRGB(27, 26, 34), TextColor3 = Theme.Text }, 0.1)
             end
         end)
         tab.Button.MouseLeave:Connect(function()
             if window.CurrentTab ~= tab then
-                Util.Tween(tab.Button, { BackgroundColor3 = Theme.Surface }, 0.12)
+                Util.Tween(tab.Button, { BackgroundColor3 = Color3.fromRGB(15, 16, 21), TextColor3 = Theme.TextMuted }, 0.12)
             end
         end)
 
@@ -1523,8 +1565,22 @@ function SyntraUI:ShowLoadingScreen(options)
         BackgroundColor3 = Color3.fromRGB(0, 0, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
+        ZIndex = 1,
     }, gui)
     Util.Tween(overlay, { BackgroundTransparency = 0.34 }, 0.24)
+
+    local panelShadow = Util.New("ImageLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(382, 212),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://1316045217",
+        ImageColor3 = Theme.Shadow,
+        ImageTransparency = 0.36,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(10, 10, 118, 118),
+        ZIndex = 2,
+    }, gui)
 
     local panel = Util.New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1533,13 +1589,19 @@ function SyntraUI:ShowLoadingScreen(options)
         BackgroundColor3 = Theme.Surface,
         BorderSizePixel = 0,
         ClipsDescendants = true,
+        ZIndex = 3,
     }, gui)
     Util.Corner(panel, 10)
     Util.Stroke(panel, Theme.Border, 0.18)
+    Util.Gradient(panel, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(27, 27, 34)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 14, 18)),
+    }, 90)
     Util.New("Frame", {
         Size = UDim2.new(1, 0, 0, 2),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
+        ZIndex = 5,
     }, panel)
     Util.Text(panel, {
         Text = options.Title or "SyntraUI",
@@ -1548,6 +1610,7 @@ function SyntraUI:ShowLoadingScreen(options)
         X = Enum.TextXAlignment.Center,
         Position = UDim2.fromOffset(20, 34),
         BoxSize = UDim2.new(1, -40, 0, 26),
+        ZIndex = 5,
     })
     local status = Util.Text(panel, {
         Text = options.Subtitle or options.Status or "Loading...",
@@ -1556,22 +1619,38 @@ function SyntraUI:ShowLoadingScreen(options)
         X = Enum.TextXAlignment.Center,
         Position = UDim2.fromOffset(20, 64),
         BoxSize = UDim2.new(1, -40, 0, 20),
+        ZIndex = 5,
     })
     local barBack = Util.New("Frame", {
         Position = UDim2.fromOffset(28, 112),
         Size = UDim2.new(1, -56, 0, 7),
         BackgroundColor3 = Theme.Field,
         BorderSizePixel = 0,
+        ZIndex = 5,
     }, panel)
     Util.Corner(barBack, 999)
     local bar = Util.New("Frame", {
         Size = UDim2.new(0, 0, 1, 0),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
+        ZIndex = 6,
     }, barBack)
     Util.Corner(bar, 999)
 
     Util.Tween(panel, { Size = UDim2.fromOffset(330, 160) }, 0.32, Enum.EasingStyle.Back)
+
+    local function syncPanelShadow()
+        if not (panelShadow and panelShadow.Parent and panel and panel.Parent) then return end
+        local pos = panel.AbsolutePosition
+        local sizeNow = panel.AbsoluteSize
+        panelShadow.AnchorPoint = Vector2.new(0, 0)
+        panelShadow.Position = UDim2.fromOffset(pos.X - 26, pos.Y - 26)
+        panelShadow.Size = UDim2.fromOffset(sizeNow.X + 52, sizeNow.Y + 52)
+    end
+    panel:GetPropertyChangedSignal("Position"):Connect(syncPanelShadow)
+    panel:GetPropertyChangedSignal("Size"):Connect(syncPanelShadow)
+    task.defer(syncPanelShadow)
+    Util.MakeDraggable(panel, panel)
 
     local loader = {}
     function loader:SetStatus(text)
@@ -1584,6 +1663,7 @@ function SyntraUI:ShowLoadingScreen(options)
     function loader:Close(fadeTime)
         fadeTime = fadeTime or 0.24
         Util.Tween(overlay, { BackgroundTransparency = 1 }, fadeTime)
+        Util.Tween(panelShadow, { ImageTransparency = 1 }, fadeTime)
         Util.Tween(panel, { Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 }, fadeTime)
         task.delay(fadeTime + 0.04, function()
             if gui and gui.Parent then gui:Destroy() end
