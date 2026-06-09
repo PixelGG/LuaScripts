@@ -19,6 +19,7 @@ local TeleportService  = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 local SyntraLogoUrl = "https://raw.githubusercontent.com/PixelGG/LuaScripts/main/SyntraUI.png"
+local SyntraBrandUrl = "https://raw.githubusercontent.com/PixelGG/LuaScripts/main/Syntra.png"
 local SyntraFolder = "SyntraUI"
 
 local Executor = {
@@ -421,9 +422,14 @@ function SyntraUI:CreateWindow(options)
     options = options or {}
     local title    = options.Title    or "SyntraUI"
     local subtitle = options.Subtitle or ""
-    local winSize  = options.Size     or UDim2.new(0, 600, 0, 440)
-    local winPos   = options.Position or UDim2.new(0.5, -300, 0.5, -220)
-    local logo     = options.Logo     or nil
+    local winSize  = options.Size     or UDim2.new(0, 720, 0, 600)
+    local winPos   = options.Position or UDim2.new(0.5, -360, 0.5, -300)
+    local logo     = options.Logo     or SyntraBrandUrl
+    local sidebarWidth = options.SidebarWidth or 218
+    local topbarHeight = options.TopbarHeight or 50
+    local footerHeight = options.FooterHeight or 22
+    local footerText = options.Footer or "by Lorthanyx  |  v2.0"
+    local searchPlaceholder = options.SearchPlaceholder or "Suchen"
 
     -- Alte Instanz aufräumen
     local guiParent = getGuiParent()
@@ -446,7 +452,7 @@ function SyntraUI:CreateWindow(options)
         BorderSizePixel  = 0,
         ClipsDescendants = true,
     }, ScreenGui)
-    Util.Corner(12, Main)
+    Util.Corner(6, Main)
     Util.Stroke(Theme.Border, 1, Main)
 
     -- Schattenbild
@@ -466,18 +472,19 @@ function SyntraUI:CreateWindow(options)
     -- ── Titelleiste ──────────────────────────────────────
     local Titlebar = Util.Make("Frame", {
         Name             = "Titlebar",
-        Size             = UDim2.new(1, 0, 0, 48),
-        BackgroundColor3 = Theme.Secondary,
+        Size             = UDim2.new(1, -sidebarWidth, 0, topbarHeight),
+        Position         = UDim2.new(0, sidebarWidth, 0, 0),
+        BackgroundColor3 = Theme.Background,
         BorderSizePixel  = 0,
         ZIndex           = 3,
     }, Main)
 
     -- Nur obere Ecken rund (untere Hälfte auffüllen)
-    Util.Corner(12, Titlebar)
+    Util.Corner(0, Titlebar)
     Util.Make("Frame", {
         Size             = UDim2.new(1, 0, 0.5, 0),
         Position         = UDim2.new(0, 0, 0.5, 0),
-        BackgroundColor3 = Theme.Secondary,
+        BackgroundColor3 = Theme.Background,
         BorderSizePixel  = 0,
         ZIndex           = 3,
     }, Titlebar)
@@ -486,7 +493,7 @@ function SyntraUI:CreateWindow(options)
     Util.Make("Frame", {
         Size             = UDim2.new(1, 0, 0, 1),
         Position         = UDim2.new(0, 0, 1, -1),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Separator,
         BorderSizePixel  = 0,
         ZIndex           = 4,
     }, Titlebar)
@@ -494,19 +501,19 @@ function SyntraUI:CreateWindow(options)
         Size                   = UDim2.new(1, 0, 0, 8),
         Position               = UDim2.new(0, 0, 1, -1),
         BackgroundColor3       = Theme.Accent,
-        BackgroundTransparency = 0.82,
+        BackgroundTransparency = 1,
         BorderSizePixel        = 0,
         ZIndex                 = 3,
     }, Titlebar)
 
     -- Logo (optional)
     local titleOffsetX = 14
-    if logo then
+    if false and logo then
         Util.Make("ImageLabel", {
             Size                   = UDim2.new(0, 28, 0, 28),
             Position               = UDim2.new(0, 12, 0.5, -14),
             BackgroundTransparency = 1,
-            Image                  = logo,
+            Image                  = resolveImage(logo, "SyntraUI.png"),
             ZIndex                 = 5,
         }, Titlebar)
         titleOffsetX = 48
@@ -514,22 +521,28 @@ function SyntraUI:CreateWindow(options)
 
     -- Titel + Subtitle nebeneinander (ein Frame damit Abstand stimmt)
     local titleRow = Util.Make("Frame", {
-        BackgroundTransparency = 1,
-        Size                   = UDim2.new(1, -160, 1, 0),
-        Position               = UDim2.new(0, titleOffsetX, 0, 0),
+        BackgroundColor3       = Theme.Secondary,
+        BackgroundTransparency = 0,
+        Size                   = UDim2.new(1, -122, 0, 34),
+        Position               = UDim2.new(0, 8, 0.5, -17),
         ZIndex                 = 5,
     }, Titlebar)
-    Util.Make("TextLabel", {
-        Text                   = title,
-        Font                   = Enum.Font.GothamBold,
-        TextSize               = 15,
+    Util.Corner(3, titleRow)
+    Util.Stroke(Theme.Separator, 1, titleRow)
+    local SearchInput = Util.Make("TextBox", {
+        Text                   = "",
+        PlaceholderText        = searchPlaceholder,
+        PlaceholderColor3      = Theme.TextDisabled,
+        Font                   = Enum.Font.Gotham,
+        TextSize               = 13,
         TextColor3             = Theme.TextPrimary,
         BackgroundTransparency = 1,
-        Size                   = UDim2.new(0, 200, 1, 0),
-        TextXAlignment         = Enum.TextXAlignment.Left,
+        ClearTextOnFocus       = false,
+        Size                   = UDim2.new(1, 0, 1, 0),
+        TextXAlignment         = Enum.TextXAlignment.Center,
         ZIndex                 = 5,
     }, titleRow)
-    if subtitle ~= "" then
+    if false and subtitle ~= "" then
         Util.Make("TextLabel", {
             Text                   = "  /  " .. subtitle,
             Font                   = Enum.Font.Gotham,
@@ -544,10 +557,22 @@ function SyntraUI:CreateWindow(options)
     end
 
     -- Fenster-Buttons (macOS-Stil, aber schärfer)
+    Util.Make("TextLabel", {
+        Text                   = "+",
+        Font                   = Enum.Font.GothamBold,
+        TextSize               = 30,
+        TextColor3             = Theme.BorderLight,
+        TextTransparency       = 0.25,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(0, 38, 1, 0),
+        Position               = UDim2.new(1, -106, 0, 0),
+        ZIndex                 = 5,
+    }, Titlebar)
+
     local function makeWinBtn(offsetX, symbol, normalColor)
         local circle = Util.Make("Frame", {
-            Size             = UDim2.new(0, 13, 0, 13),
-            Position         = UDim2.new(1, offsetX, 0.5, -6),
+            Size             = UDim2.new(0, 16, 0, 16),
+            Position         = UDim2.new(1, offsetX, 0.5, -8),
             BackgroundColor3 = normalColor,
             ZIndex           = 6,
         }, Titlebar)
@@ -556,11 +581,11 @@ function SyntraUI:CreateWindow(options)
         local lbl = Util.Make("TextLabel", {
             Text                   = symbol,
             Font                   = Enum.Font.GothamBold,
-            TextSize               = 9,
-            TextColor3             = Color3.fromRGB(30, 20, 40),
+            TextSize               = 10,
+            TextColor3             = Theme.TextSecondary,
             BackgroundTransparency = 1,
             Size                   = UDim2.new(1, 0, 1, 0),
-            TextTransparency       = 1,
+            TextTransparency       = 0.15,
             ZIndex                 = 7,
         }, circle)
 
@@ -572,26 +597,115 @@ function SyntraUI:CreateWindow(options)
         }, circle)
 
         btn.MouseEnter:Connect(function()
-            Util.Tween(circle, {BackgroundColor3 = normalColor:Lerp(Color3.new(1,1,1), 0.3)}, 0.12)
-            lbl.TextTransparency = 0
+            Util.Tween(circle, {BackgroundColor3 = Theme.Tertiary}, 0.12)
+            lbl.TextColor3 = Theme.AccentGlow
         end)
         btn.MouseLeave:Connect(function()
             Util.Tween(circle, {BackgroundColor3 = normalColor}, 0.12)
-            lbl.TextTransparency = 1
+            lbl.TextColor3 = Theme.TextSecondary
         end)
 
         return btn, circle
     end
 
-    local CloseBtn,    closeCircle    = makeWinBtn(-18, "✕", Color3.fromRGB(255, 75, 75))
-    local MinimizeBtn, minimizeCircle = makeWinBtn(-38, "−", Color3.fromRGB(255, 190, 45))
-    local MaximizeBtn, maximizeCircle = makeWinBtn(-58, "+", Color3.fromRGB(48, 200, 100))
+    local CloseBtn,    closeCircle    = makeWinBtn(-16, "x", Theme.Secondary)
+    local MinimizeBtn, minimizeCircle = makeWinBtn(-38, "-", Theme.Secondary)
+    local MaximizeBtn, maximizeCircle = makeWinBtn(-60, "+", Theme.Secondary)
 
     -- ── Content-Bereich ──────────────────────────────────
+    local Sidebar = Util.Make("Frame", {
+        Name             = "Sidebar",
+        Size             = UDim2.new(0, sidebarWidth, 1, -footerHeight),
+        Position         = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = Theme.Secondary,
+        BorderSizePixel  = 0,
+        ZIndex           = 2,
+    }, Main)
+
+    local BrandLogo = Util.Make("ImageLabel", {
+        Name                   = "BrandLogo",
+        Size                   = UDim2.new(0, 30, 0, 30),
+        Position               = UDim2.new(0, 34, 0, 11),
+        BackgroundTransparency = 1,
+        Image                  = resolveImage(logo, "Syntra.png"),
+        ScaleType              = Enum.ScaleType.Fit,
+        ZIndex                 = 4,
+    }, Sidebar)
+    Util.Corner(999, BrandLogo)
+
+    Util.Make("TextLabel", {
+        Text                   = title,
+        Font                   = Enum.Font.Code,
+        TextSize               = 16,
+        TextColor3             = Theme.TextPrimary,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, -78, 0, 22),
+        Position               = UDim2.new(0, 72, 0, 8),
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        TextTruncate           = Enum.TextTruncate.AtEnd,
+        ZIndex                 = 4,
+    }, Sidebar)
+
+    Util.Make("TextLabel", {
+        Text                   = subtitle ~= "" and subtitle or "dashboard",
+        Font                   = Enum.Font.Code,
+        TextSize               = 15,
+        TextColor3             = Theme.TextPrimary,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, -78, 0, 20),
+        Position               = UDim2.new(0, 72, 0, 27),
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        TextTruncate           = Enum.TextTruncate.AtEnd,
+        ZIndex                 = 4,
+    }, Sidebar)
+
+    Util.Make("Frame", {
+        Size             = UDim2.new(1, 0, 0, 1),
+        Position         = UDim2.new(0, 0, 0, topbarHeight),
+        BackgroundColor3 = Theme.Separator,
+        BorderSizePixel  = 0,
+        ZIndex           = 4,
+    }, Sidebar)
+
+    local Footer = Util.Make("Frame", {
+        Name             = "Footer",
+        Size             = UDim2.new(1, 0, 0, footerHeight),
+        Position         = UDim2.new(0, 0, 1, -footerHeight),
+        BackgroundColor3 = Theme.Secondary,
+        BorderSizePixel  = 0,
+        ZIndex           = 4,
+    }, Main)
+
+    Util.Make("Frame", {
+        Size             = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Theme.Separator,
+        BorderSizePixel  = 0,
+        ZIndex           = 5,
+    }, Footer)
+
+    Util.Make("TextLabel", {
+        Text                   = footerText,
+        Font                   = Enum.Font.Code,
+        TextSize               = 12,
+        TextColor3             = Theme.TextSecondary,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, 0, 1, 0),
+        TextXAlignment         = Enum.TextXAlignment.Center,
+        ZIndex                 = 5,
+    }, Footer)
+
+    Util.Make("Frame", {
+        Size             = UDim2.new(0, 1, 1, -footerHeight),
+        Position         = UDim2.new(0, sidebarWidth, 0, 0),
+        BackgroundColor3 = Theme.Separator,
+        BorderSizePixel  = 0,
+        ZIndex           = 5,
+    }, Main)
+
     local ContentFrame = Util.Make("Frame", {
         Name                   = "Content",
-        Size                   = UDim2.new(1, 0, 1, -48),
-        Position               = UDim2.new(0, 0, 0, 48),
+        Size                   = UDim2.new(1, -sidebarWidth, 1, -(topbarHeight + footerHeight)),
+        Position               = UDim2.new(0, sidebarWidth, 0, topbarHeight),
         BackgroundTransparency = 1,
         ClipsDescendants       = true,
     }, Main)
@@ -599,7 +713,8 @@ function SyntraUI:CreateWindow(options)
     -- Sidebar (Tab-Liste)
     local TabList = Util.Make("ScrollingFrame", {
         Name                     = "TabList",
-        Size                     = UDim2.new(0, 148, 1, 0),
+        Size                     = UDim2.new(1, 0, 1, -(topbarHeight + footerHeight)),
+        Position                 = UDim2.new(0, 0, 0, topbarHeight),
         BackgroundColor3         = Theme.Secondary,
         BorderSizePixel          = 0,
         ScrollBarThickness       = 2,
@@ -607,8 +722,8 @@ function SyntraUI:CreateWindow(options)
         CanvasSize               = UDim2.new(0, 0, 0, 0),
         AutomaticCanvasSize      = Enum.AutomaticSize.Y,
         ScrollingDirection       = Enum.ScrollingDirection.Y,
-    }, ContentFrame)
-    Util.Padding(10, 10, 6, 6, TabList)
+    }, Sidebar)
+    Util.Padding(10, 10, 10, 10, TabList)
     Util.Make("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding   = UDim.new(0, 3),
@@ -616,8 +731,8 @@ function SyntraUI:CreateWindow(options)
 
     -- Trennlinie Sidebar → Pages
     Util.Make("Frame", {
-        Size             = UDim2.new(0, 1, 1, 0),
-        Position         = UDim2.new(0, 148, 0, 0),
+        Size             = UDim2.new(0, 0, 1, 0),
+        Position         = UDim2.new(0, 0, 0, 0),
         BackgroundColor3 = Theme.Separator,
         BorderSizePixel  = 0,
     }, ContentFrame)
@@ -625,8 +740,8 @@ function SyntraUI:CreateWindow(options)
     -- Seiten-Container
     local Pages = Util.Make("Frame", {
         Name                   = "Pages",
-        Size                   = UDim2.new(1, -149, 1, 0),
-        Position               = UDim2.new(0, 149, 0, 0),
+        Size                   = UDim2.new(1, 0, 1, 0),
+        Position               = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
         ClipsDescendants       = true,
     }, ContentFrame)
@@ -689,6 +804,17 @@ function SyntraUI:CreateWindow(options)
     Window._tabs         = tabs
     Window._activeTab    = nil
     Window._gui          = SyntraUI
+    Window._searchInput  = SearchInput
+
+    local function applyTabSearch()
+        local query = string.lower(SearchInput.Text or "")
+        for _, t in ipairs(tabs) do
+            local name = string.lower(t._name or "")
+            t._btn.Visible = query == "" or name:find(query, 1, true) ~= nil
+        end
+    end
+
+    SearchInput:GetPropertyChangedSignal("Text"):Connect(applyTabSearch)
 
     -- ╔══════════════════════════════════════════════════╗
     --  TAB ERSTELLEN
@@ -757,8 +883,9 @@ function SyntraUI:CreateWindow(options)
         }, Page)
 
         -- Tab-Eintrag
-        local tab = { _btn = TabBtn, _page = Page, _indicator = Indicator }
+        local tab = { _name = tabName, _btn = TabBtn, _page = Page, _indicator = Indicator }
         table.insert(tabs, tab)
+        applyTabSearch()
 
         -- Aktivierungslogik
         local function activateTab()
@@ -1864,62 +1991,87 @@ function SyntraUI:ShowLoadingScreen(options)
     local duration = options.Duration
 
     local guiParent = getGuiParent()
-    local old = guiParent:FindFirstChild("SyntraUI_Loading")
+    local old = guiParent:FindFirstChild("SyntraUI_Loading", true)
     if old then old:Destroy() end
 
-    local sg = Util.Make("ScreenGui", {
-        Name = "SyntraUI_Loading",
-        ResetOnSpawn = false,
-        IgnoreGuiInset = true,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    }, guiParent)
+    local dashboard = options.Parent
+    if type(dashboard) == "table" then
+        dashboard = dashboard._main
+    end
+    if not dashboard then
+        local windowGui = guiParent:FindFirstChild("SyntraUI_Window")
+        dashboard = windowGui and windowGui:FindFirstChild("Main")
+    end
+
+    local sg
+    local mount = dashboard
+    if not mount then
+        sg = Util.Make("ScreenGui", {
+            Name = "SyntraUI_LoadingGui",
+            ResetOnSpawn = false,
+            IgnoreGuiInset = true,
+            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        }, guiParent)
+
+        mount = Util.Make("Frame", {
+            Name = "SyntraUI_LoadingMount",
+            Size = options.Size or UDim2.new(0, 720, 0, 600),
+            Position = options.Position or UDim2.new(0.5, -360, 0.5, -300),
+            BackgroundColor3 = Theme.Background,
+            BorderSizePixel = 0,
+            ClipsDescendants = true,
+        }, sg)
+        Util.Corner(6, mount)
+        Util.Stroke(Theme.Border, 1, mount)
+    end
 
     local root = Util.Make("Frame", {
+        Name = "SyntraUI_Loading",
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = Theme.Background,
-        BackgroundTransparency = 1,
+        BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
-    }, sg)
+        ClipsDescendants = true,
+        ZIndex = 100,
+    }, mount)
 
     local glow = Util.Make("Frame", {
-        Size = UDim2.new(0, 360, 0, 360),
-        Position = UDim2.new(0.5, -180, 0.5, -210),
+        Size = UDim2.new(0, 280, 0, 280),
+        Position = UDim2.new(0.5, -140, 0.5, -170),
         BackgroundColor3 = Theme.Accent,
         BackgroundTransparency = 0.86,
         BorderSizePixel = 0,
+        ZIndex = 101,
     }, root)
     Util.Corner(999, glow)
 
     local logoFrame = Util.Make("Frame", {
-        Size = UDim2.new(0, 112, 0, 112),
-        Position = UDim2.new(0.5, -56, 0.5, -118),
-        BackgroundColor3 = Theme.Secondary,
-        BackgroundTransparency = 0.05,
+        Size = UDim2.new(0, 220, 0, 82),
+        Position = UDim2.new(0.5, -110, 0.5, -95),
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ZIndex = 2,
+        ZIndex = 102,
     }, root)
-    Util.Corner(24, logoFrame)
-    Util.Stroke(Theme.BorderLight, 1, logoFrame)
 
     Util.Make("ImageLabel", {
-        Size = UDim2.new(1, -22, 1, -22),
-        Position = UDim2.new(0, 11, 0, 11),
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
         Image = logo,
         ScaleType = Enum.ScaleType.Fit,
-        ZIndex = 3,
+        ZIndex = 103,
     }, logoFrame)
 
     local titleLabel = Util.Make("TextLabel", {
         Text = title,
         Font = Enum.Font.GothamBold,
-        TextSize = 28,
+        TextSize = 22,
         TextColor3 = Theme.TextPrimary,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, -40, 0, 34),
-        Position = UDim2.new(0, 20, 0.5, 12),
+        Position = UDim2.new(0, 20, 0.5, 0),
         TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 2,
+        ZIndex = 102,
     }, root)
 
     local statusLabel = Util.Make("TextLabel", {
@@ -1929,17 +2081,17 @@ function SyntraUI:ShowLoadingScreen(options)
         TextColor3 = Theme.TextSecondary,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, -40, 0, 24),
-        Position = UDim2.new(0, 20, 0.5, 48),
+        Position = UDim2.new(0, 20, 0.5, 34),
         TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 2,
+        ZIndex = 102,
     }, root)
 
     local barBack = Util.Make("Frame", {
         Size = UDim2.new(0, 260, 0, 5),
-        Position = UDim2.new(0.5, -130, 0.5, 86),
+        Position = UDim2.new(0.5, -130, 0.5, 72),
         BackgroundColor3 = Theme.Tertiary,
         BorderSizePixel = 0,
-        ZIndex = 2,
+        ZIndex = 102,
     }, root)
     Util.Corner(999, barBack)
 
@@ -1947,11 +2099,11 @@ function SyntraUI:ShowLoadingScreen(options)
         Size = UDim2.new(0, 0, 1, 0),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
-        ZIndex = 3,
+        ZIndex = 103,
     }, barBack)
     Util.Corner(999, bar)
 
-    Util.Tween(root, {BackgroundTransparency = 0}, 0.25)
+    Util.Tween(root, {BackgroundTransparency = 0.08}, 0.2)
     Util.Tween(glow, {BackgroundTransparency = 0.72}, 0.35)
     if duration then
         Util.Tween(bar, {Size = UDim2.new(1, 0, 1, 0)}, duration, Enum.EasingStyle.Linear)
@@ -1968,7 +2120,14 @@ function SyntraUI:ShowLoadingScreen(options)
     function loader:Close(fadeTime)
         fadeTime = fadeTime or 0.25
         Util.Tween(root, {BackgroundTransparency = 1}, fadeTime)
+        Util.Tween(glow, {BackgroundTransparency = 1}, fadeTime)
         task.delay(fadeTime, function()
+            local brandLogo = mount and mount:FindFirstChild("BrandLogo", true)
+            if brandLogo and brandLogo:IsA("ImageLabel") then
+                brandLogo.BackgroundTransparency = 1
+                brandLogo.Image = resolveImage(SyntraBrandUrl, "Syntra.png")
+            end
+            if root and root.Parent then root:Destroy() end
             if sg and sg.Parent then sg:Destroy() end
         end)
     end
