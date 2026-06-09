@@ -21,6 +21,7 @@ local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 local SyntraFolder = "SyntraUI"
+local SyntraLogoUrl = "https://raw.githubusercontent.com/PixelGG/LuaScripts/main/Syntra.png"
 
 --// Executor
 local Executor = { Name = "Unknown", Version = "" }
@@ -297,6 +298,51 @@ local function ensureFolder(path)
     return true
 end
 
+local function requestUrl(url)
+    local requester = request or http_request or (http and http.request) or (syn and syn.request) or (fluxus and fluxus.request)
+    if requester then
+        local ok, response = pcall(function()
+            return requester({
+                Url = url,
+                Method = "GET",
+            })
+        end)
+        if ok and response and response.Body and #response.Body > 0 then
+            return response.Body
+        end
+    end
+
+    local ok, body = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if ok and body and #body > 0 then return body end
+    return nil
+end
+
+local function resolveImage(image, fileName)
+    if type(image) ~= "string" or image == "" then return nil end
+    if not image:match("^https?://") then return image end
+    if not (writefile and getcustomasset) then return image end
+
+    local folder = SyntraFolder .. "/assets"
+    local path = folder .. "/" .. (fileName or "syntra.png")
+
+    if not (isfile and isfile(path)) then
+        local body = requestUrl(image)
+        if body then
+            ensureFolder(folder)
+            writefile(path, body)
+        end
+    end
+
+    if isfile and isfile(path) then
+        local ok, asset = pcall(getcustomasset, path)
+        if ok and asset then return asset end
+    end
+
+    return image
+end
+
 local function normalizeOptions(value)
     if type(value) ~= "table" then return {} end
     return value
@@ -441,6 +487,7 @@ function SyntraUI:CreateWindow(options)
     options = normalizeOptions(options)
     local title = options.Title or options.Name or "SyntraUI"
     local subtitle = options.Subtitle or "Professional Roblox UI"
+    local logo = options.Logo or options.Image or SyntraLogoUrl
     local keybind = resolveKey(options.ToggleKey or options.Keybind or Enum.KeyCode.RightControl)
     local closeExisting = options.CloseExisting ~= false
     local size = options.Size or UDim2.fromOffset(860, 560)
@@ -467,6 +514,7 @@ function SyntraUI:CreateWindow(options)
         Position = options.Position or UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(0, 0),
         BackgroundColor3 = Theme.Background,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, screenGui)
@@ -487,7 +535,7 @@ function SyntraUI:CreateWindow(options)
         BackgroundTransparency = 1,
         Image = "rbxassetid://1316045217",
         ImageColor3 = Theme.Shadow,
-        ImageTransparency = 0.34,
+        ImageTransparency = 1,
         ScaleType = Enum.ScaleType.Slice,
         SliceCenter = Rect.new(10, 10, 118, 118),
         ZIndex = 0,
@@ -541,15 +589,19 @@ function SyntraUI:CreateWindow(options)
     }, sidebar)
 
     local sigil = Util.New("Frame", {
-        Position = UDim2.fromOffset(14, 12),
-        Size = UDim2.fromOffset(28, 28),
+        Position = UDim2.fromOffset(12, 9),
+        Size = UDim2.fromOffset(34, 34),
         BackgroundColor3 = Theme.AccentSoft,
         BorderSizePixel = 0,
         ZIndex = 5,
     }, brand)
-    Util.Corner(sigil, 7)
+    Util.Corner(sigil, 9)
     Util.Stroke(sigil, Theme.Accent, 0.2)
-    Util.Text(sigil, {
+    Util.Gradient(sigil, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 46, 28)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 18, 16)),
+    }, 90)
+    local logoFallback = Util.Text(sigil, {
         Text = tostring(title):sub(1, 1):upper(),
         Font = Theme.FontBold,
         Size = 15,
@@ -558,21 +610,38 @@ function SyntraUI:CreateWindow(options)
         BoxSize = UDim2.new(1, 0, 1, 0),
         ZIndex = 6,
     })
+    local logoImage = Util.New("ImageLabel", {
+        BackgroundTransparency = 1,
+        Image = "",
+        ImageTransparency = 1,
+        Position = UDim2.fromOffset(5, 5),
+        Size = UDim2.new(1, -10, 1, -10),
+        ScaleType = Enum.ScaleType.Fit,
+        ZIndex = 7,
+    }, sigil)
+    task.spawn(function()
+        local asset = resolveImage(logo, "Syntra.png")
+        if logoImage and logoImage.Parent and asset then
+            logoImage.Image = asset
+            Util.Tween(logoImage, { ImageTransparency = 0 }, 0.28, Enum.EasingStyle.Sine)
+            Util.Tween(logoFallback, { TextTransparency = 1 }, 0.18)
+        end
+    end)
 
     Util.Text(brand, {
         Text = title,
         Font = Theme.FontBold,
         Size = 15,
-        Position = UDim2.fromOffset(52, 10),
-        BoxSize = UDim2.new(1, -62, 0, 18),
+        Position = UDim2.fromOffset(56, 9),
+        BoxSize = UDim2.new(1, -66, 0, 18),
         ZIndex = 5,
     })
     Util.Text(brand, {
         Text = subtitle,
         Size = 11,
         Color = Theme.TextDim,
-        Position = UDim2.fromOffset(52, 29),
-        BoxSize = UDim2.new(1, -62, 0, 16),
+        Position = UDim2.fromOffset(56, 29),
+        BoxSize = UDim2.new(1, -66, 0, 16),
         ZIndex = 5,
     })
 
@@ -623,7 +692,7 @@ function SyntraUI:CreateWindow(options)
     }, topbar)
 
     local pageTitle = Util.Text(topbar, {
-        Text = "Dashboard",
+        Text = title,
         Font = Theme.FontBold,
         Size = 16,
         Position = UDim2.fromOffset(18, 9),
@@ -631,7 +700,7 @@ function SyntraUI:CreateWindow(options)
         ZIndex = 4,
     })
     local pageSubtitle = Util.Text(topbar, {
-        Text = "Choose a tab to begin.",
+        Text = subtitle,
         Size = 11,
         Color = Theme.TextMuted,
         Position = UDim2.fromOffset(18, 29),
@@ -825,12 +894,16 @@ function SyntraUI:CreateWindow(options)
         if self.CurrentTab == tab then return end
         for _, item in ipairs(self.Tabs) do
             item.Page.Visible = item == tab
+            item.Page.CanvasPosition = Vector2.new(0, 0)
             Util.Tween(item.Button, {
                 BackgroundColor3 = item == tab and Theme.AccentSoft or Theme.Surface,
                 TextColor3 = item == tab and Theme.AccentGlow or Theme.TextMuted,
             }, 0.14)
             if item.Marker then
-                Util.Tween(item.Marker, { BackgroundTransparency = item == tab and 0 or 1 }, 0.14)
+                Util.Tween(item.Marker, {
+                    BackgroundTransparency = item == tab and 0 or 1,
+                    Size = item == tab and UDim2.fromOffset(3, 24) or UDim2.fromOffset(3, 12),
+                }, 0.18, Enum.EasingStyle.Quart)
             end
         end
         self.CurrentTab = tab
@@ -843,6 +916,7 @@ function SyntraUI:CreateWindow(options)
         local tab = {
             Name = tabOpts.Name or tabOpts.Title or "Tab",
             Desc = tabOpts.Desc or tabOpts.Subtitle or "",
+            BuiltIn = tabOpts.BuiltIn == true,
             Page = makePage(),
             Window = window,
         }
@@ -1513,7 +1587,7 @@ function SyntraUI:CreateWindow(options)
         end
 
         table.insert(window.Tabs, tab)
-        if not window.CurrentTab then
+        if not window.CurrentTab and not tab.BuiltIn then
             window:SelectTab(tab)
         end
         return tab
@@ -1521,12 +1595,16 @@ function SyntraUI:CreateWindow(options)
 
     window.AddTab = window.CreateTab
 
-    Util.Tween(main, { Size = size }, 0.34, Enum.EasingStyle.Back)
+    Util.Tween(main, {
+        Size = size,
+        BackgroundTransparency = 0,
+    }, 0.28, Enum.EasingStyle.Quart)
+    Util.Tween(shadow, { ImageTransparency = 0.34 }, 0.36, Enum.EasingStyle.Sine)
     main:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateResponsive)
     task.defer(updateResponsive)
 
     if options.Settings ~= false and options.AutoSettings == true then
-        local settings = window:CreateTab({ Name = options.SettingsTabName or "Settings", Desc = "Window controls." })
+        local settings = window:CreateTab({ Name = options.SettingsTabName or "Settings", Desc = "Window controls.", BuiltIn = true })
         settings:AddKeybind({
             Name = "Toggle UI",
             Desc = "Press the selected key to show or hide the window.",
@@ -1552,6 +1630,7 @@ end
 function SyntraUI:ShowLoadingScreen(options)
     options = normalizeOptions(options)
     local parent = getGuiParent()
+    local logo = options.Logo or options.Image or SyntraLogoUrl
     local gui = Util.New("ScreenGui", {
         Name = "SyntraUI_Loading",
         ResetOnSpawn = false,
@@ -1587,6 +1666,7 @@ function SyntraUI:ShowLoadingScreen(options)
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(0, 0),
         BackgroundColor3 = Theme.Surface,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 3,
@@ -1603,12 +1683,54 @@ function SyntraUI:ShowLoadingScreen(options)
         BorderSizePixel = 0,
         ZIndex = 5,
     }, panel)
+
+    local logoBox = Util.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 22),
+        Size = UDim2.fromOffset(44, 44),
+        BackgroundColor3 = Theme.AccentSoft,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+    }, panel)
+    Util.Corner(logoBox, 11)
+    Util.Stroke(logoBox, Theme.Accent, 0.28)
+    Util.Gradient(logoBox, {
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 46, 28)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(17, 16, 20)),
+    }, 90)
+    local loaderFallback = Util.Text(logoBox, {
+        Text = tostring(options.Title or "S"):sub(1, 1):upper(),
+        Font = Theme.FontBold,
+        Size = 18,
+        Color = Theme.AccentGlow,
+        X = Enum.TextXAlignment.Center,
+        BoxSize = UDim2.new(1, 0, 1, 0),
+        ZIndex = 6,
+    })
+    local loaderLogo = Util.New("ImageLabel", {
+        BackgroundTransparency = 1,
+        Image = "",
+        ImageTransparency = 1,
+        Position = UDim2.fromOffset(6, 6),
+        Size = UDim2.new(1, -12, 1, -12),
+        ScaleType = Enum.ScaleType.Fit,
+        ZIndex = 7,
+    }, logoBox)
+    task.spawn(function()
+        local asset = resolveImage(logo, "Syntra.png")
+        if loaderLogo and loaderLogo.Parent and asset then
+            loaderLogo.Image = asset
+            Util.Tween(loaderLogo, { ImageTransparency = 0 }, 0.28, Enum.EasingStyle.Sine)
+            Util.Tween(loaderFallback, { TextTransparency = 1 }, 0.18)
+        end
+    end)
+
     Util.Text(panel, {
         Text = options.Title or "SyntraUI",
         Font = Theme.FontBold,
         Size = 18,
         X = Enum.TextXAlignment.Center,
-        Position = UDim2.fromOffset(20, 34),
+        Position = UDim2.fromOffset(20, 76),
         BoxSize = UDim2.new(1, -40, 0, 26),
         ZIndex = 5,
     })
@@ -1617,12 +1739,12 @@ function SyntraUI:ShowLoadingScreen(options)
         Size = 12,
         Color = Theme.TextMuted,
         X = Enum.TextXAlignment.Center,
-        Position = UDim2.fromOffset(20, 64),
+        Position = UDim2.fromOffset(20, 103),
         BoxSize = UDim2.new(1, -40, 0, 20),
         ZIndex = 5,
     })
     local barBack = Util.New("Frame", {
-        Position = UDim2.fromOffset(28, 112),
+        Position = UDim2.fromOffset(28, 142),
         Size = UDim2.new(1, -56, 0, 7),
         BackgroundColor3 = Theme.Field,
         BorderSizePixel = 0,
@@ -1637,7 +1759,10 @@ function SyntraUI:ShowLoadingScreen(options)
     }, barBack)
     Util.Corner(bar, 999)
 
-    Util.Tween(panel, { Size = UDim2.fromOffset(330, 160) }, 0.32, Enum.EasingStyle.Back)
+    Util.Tween(panel, {
+        Size = UDim2.fromOffset(330, 190),
+        BackgroundTransparency = 0,
+    }, 0.28, Enum.EasingStyle.Quart)
 
     local function syncPanelShadow()
         if not (panelShadow and panelShadow.Parent and panel and panel.Parent) then return end
@@ -1664,7 +1789,7 @@ function SyntraUI:ShowLoadingScreen(options)
         fadeTime = fadeTime or 0.24
         Util.Tween(overlay, { BackgroundTransparency = 1 }, fadeTime)
         Util.Tween(panelShadow, { ImageTransparency = 1 }, fadeTime)
-        Util.Tween(panel, { Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 }, fadeTime)
+        Util.Tween(panel, { Size = UDim2.fromOffset(300, 174), BackgroundTransparency = 1 }, fadeTime)
         task.delay(fadeTime + 0.04, function()
             if gui and gui.Parent then gui:Destroy() end
         end)
