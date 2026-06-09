@@ -624,23 +624,23 @@ function SyntraUI:CreateWindow(options)
 
     local BrandLogo = Util.Make("ImageLabel", {
         Name                   = "BrandLogo",
-        Size                   = UDim2.new(0, 30, 0, 30),
-        Position               = UDim2.new(0, 34, 0, 11),
+        Size                   = UDim2.new(0, 32, 0, 32),
+        Position               = UDim2.new(0, 12, 0.5, -16),
         BackgroundTransparency = 1,
         Image                  = resolveImage(logo, "Syntra.png"),
         ScaleType              = Enum.ScaleType.Fit,
+        ImageTransparency      = 0,
         ZIndex                 = 4,
     }, Sidebar)
-    Util.Corner(999, BrandLogo)
 
     Util.Make("TextLabel", {
         Text                   = title,
-        Font                   = Enum.Font.Code,
-        TextSize               = 16,
+        Font                   = Enum.Font.GothamBold,
+        TextSize               = 14,
         TextColor3             = Theme.TextPrimary,
         BackgroundTransparency = 1,
-        Size                   = UDim2.new(1, -78, 0, 22),
-        Position               = UDim2.new(0, 72, 0, 8),
+        Size                   = UDim2.new(1, -58, 0, 18),
+        Position               = UDim2.new(0, 52, 0.5, -18),
         TextXAlignment         = Enum.TextXAlignment.Left,
         TextTruncate           = Enum.TextTruncate.AtEnd,
         ZIndex                 = 4,
@@ -648,12 +648,12 @@ function SyntraUI:CreateWindow(options)
 
     Util.Make("TextLabel", {
         Text                   = subtitle ~= "" and subtitle or "dashboard",
-        Font                   = Enum.Font.Code,
-        TextSize               = 15,
-        TextColor3             = Theme.TextPrimary,
+        Font                   = Enum.Font.Gotham,
+        TextSize               = 11,
+        TextColor3             = Theme.TextDisabled,
         BackgroundTransparency = 1,
-        Size                   = UDim2.new(1, -78, 0, 20),
-        Position               = UDim2.new(0, 72, 0, 27),
+        Size                   = UDim2.new(1, -58, 0, 14),
+        Position               = UDim2.new(0, 52, 0.5, 2),
         TextXAlignment         = Enum.TextXAlignment.Left,
         TextTruncate           = Enum.TextTruncate.AtEnd,
         ZIndex                 = 4,
@@ -1977,6 +1977,93 @@ function SyntraUI:CreateWindow(options)
         return Tab
     end -- CreateTab
 
+    -- ══════════════════════════════════════════════════════
+    --  BUILT-IN SETTINGS TAB
+    -- ══════════════════════════════════════════════════════
+    do
+        local st = Window:CreateTab({ Name = "Settings" })
+
+        st:AddSection("Appearance")
+
+        st:AddToggle({
+            Name     = "Compact Mode",
+            Desc     = "Reduce element spacing",
+            Default  = false,
+            Callback = function(val)
+                local pad = val and 4 or 6
+                for _, p in ipairs(Pages:GetChildren()) do
+                    if p:IsA("ScrollingFrame") then
+                        local layout = p:FindFirstChildOfClass("UIListLayout")
+                        if layout then layout.Padding = UDim.new(0, pad) end
+                    end
+                end
+            end,
+        })
+
+        st:AddSlider({
+            Name     = "UI Scale",
+            Min      = 70,
+            Max      = 130,
+            Default  = 100,
+            Suffix   = "%",
+            Step     = 5,
+            Callback = function(val)
+                local sc = ScreenGui:FindFirstChildOfClass("UIScale")
+                if not sc then sc = Util.Make("UIScale", {}, ScreenGui) end
+                sc.Scale = val / 100
+            end,
+        })
+
+        st:AddSection("Window")
+
+        st:AddButton({
+            Name     = "Reset Position",
+            Desc     = "Move window back to center",
+            Callback = function()
+                Util.Tween(Main, { Position = winPos }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            end,
+        })
+
+        st:AddButton({
+            Name     = "Reset Size",
+            Desc     = "Restore default window size",
+            Callback = function()
+                maximized = false
+                Util.Tween(Main, { Size = winSize, Position = winPos }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            end,
+        })
+
+        st:AddSection("Information")
+
+        st:AddParagraph({
+            Title   = "Executor",
+            Content = Executor.Name .. (Executor.Version ~= "" and (" " .. Executor.Version) or ""),
+        })
+
+        st:AddParagraph({
+            Title   = "SyntraUI",
+            Content = "v2.0 – Potassium Edition  |  by Lorthanyx",
+        })
+
+        st:AddParagraph({
+            Title   = "Game",
+            Content = "PlaceId: " .. tostring(game.PlaceId) .. "  |  GameId: " .. tostring(game.GameId),
+        })
+
+        st:AddSection("Actions")
+
+        st:AddButton({
+            Name     = "Close Dashboard",
+            Desc     = "Destroy the entire UI",
+            Callback = function()
+                Util.Tween(Main, { Size = UDim2.new(winSize.X.Scale, winSize.X.Offset, 0, 0) }, 0.22)
+                task.delay(0.23, function()
+                    if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end
+                end)
+            end,
+        })
+    end
+
     return Window
 end -- CreateWindow
 
@@ -1985,149 +2072,153 @@ end -- CreateWindow
 -- ══════════════════════════════════════════════════════
 function SyntraUI:ShowLoadingScreen(options)
     options = options or {}
-    local title = options.Title or "SyntraUI"
+    local title    = options.Title    or "SyntraUI"
     local subtitle = options.Subtitle or "Loading..."
-    local logo = resolveImage(options.Logo or SyntraLogoUrl, "SyntraUI.png")
+    local logo     = resolveImage(options.Logo or SyntraLogoUrl, "SyntraUI.png")
     local duration = options.Duration
 
     local guiParent = getGuiParent()
-    local old = guiParent:FindFirstChild("SyntraUI_Loading", true)
+    local old = guiParent:FindFirstChild("SyntraUI_LoadingGui")
     if old then old:Destroy() end
 
-    local dashboard = options.Parent
-    if type(dashboard) == "table" then
-        dashboard = dashboard._main
-    end
-    if not dashboard then
-        local windowGui = guiParent:FindFirstChild("SyntraUI_Window")
-        dashboard = windowGui and windowGui:FindFirstChild("Main")
-    end
+    -- Always use a dedicated full-screen ScreenGui so the loading screen
+    -- is visible regardless of whether the dashboard window is open yet.
+    local sg = Util.Make("ScreenGui", {
+        Name           = "SyntraUI_LoadingGui",
+        ResetOnSpawn   = false,
+        IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        DisplayOrder   = 999,
+    }, guiParent)
 
-    local sg
-    local mount = dashboard
-    if not mount then
-        sg = Util.Make("ScreenGui", {
-            Name = "SyntraUI_LoadingGui",
-            ResetOnSpawn = false,
-            IgnoreGuiInset = true,
-            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        }, guiParent)
-
-        mount = Util.Make("Frame", {
-            Name = "SyntraUI_LoadingMount",
-            Size = options.Size or UDim2.new(0, 720, 0, 600),
-            Position = options.Position or UDim2.new(0.5, -360, 0.5, -300),
-            BackgroundColor3 = Theme.Background,
-            BorderSizePixel = 0,
-            ClipsDescendants = true,
-        }, sg)
-        Util.Corner(6, mount)
-        Util.Stroke(Theme.Border, 1, mount)
-    end
-
+    -- Full-screen semi-transparent overlay
     local root = Util.Make("Frame", {
-        Name = "SyntraUI_Loading",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3 = Theme.Background,
-        BackgroundTransparency = 0.08,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        ZIndex = 100,
-    }, mount)
+        Name                   = "SyntraUI_Loading",
+        Size                   = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3       = Theme.Background,
+        BackgroundTransparency = 0,
+        BorderSizePixel        = 0,
+        ZIndex                 = 1,
+    }, sg)
 
     local glow = Util.Make("Frame", {
-        Size = UDim2.new(0, 280, 0, 280),
-        Position = UDim2.new(0.5, -140, 0.5, -170),
+        Size = UDim2.new(0, 320, 0, 320),
+        Position = UDim2.new(0.5, -160, 0.5, -220),
         BackgroundColor3 = Theme.Accent,
         BackgroundTransparency = 0.86,
         BorderSizePixel = 0,
-        ZIndex = 101,
+        ZIndex = 2,
     }, root)
     Util.Corner(999, glow)
 
-    local logoFrame = Util.Make("Frame", {
-        Size = UDim2.new(0, 220, 0, 82),
-        Position = UDim2.new(0.5, -110, 0.5, -95),
-        BackgroundTransparency = 1,
+    -- Card container
+    local card = Util.Make("Frame", {
+        Size = UDim2.new(0, 290, 0, 220),
+        Position = UDim2.new(0.5, -145, 0.5, -110),
+        BackgroundColor3 = Theme.Secondary,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
-        ZIndex = 102,
+        ZIndex = 3,
     }, root)
+    Util.Corner(12, card)
+    Util.Stroke(Theme.Border, 1, card)
 
+    -- Accent top strip
+    local strip = Util.Make("Frame", {
+        Size = UDim2.new(1, 0, 0, 3),
+        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 4,
+    }, card)
+    Util.Corner(12, strip)
+    Util.Make("Frame", {
+        Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.new(0, 0, 0.5, 0),
+        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 4,
+    }, strip)
+
+    -- Logo (transparent background, centered)
+    local logoCont = Util.Make("Frame", {
+        Size = UDim2.new(0, 64, 0, 64), Position = UDim2.new(0.5, -32, 0, 18),
+        BackgroundColor3 = Theme.Tertiary, BorderSizePixel = 0, ZIndex = 4,
+    }, card)
+    Util.Corner(16, logoCont)
+    Util.Stroke(Theme.Border, 1, logoCont)
     Util.Make("ImageLabel", {
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        Image = logo,
-        ScaleType = Enum.ScaleType.Fit,
-        ZIndex = 103,
-    }, logoFrame)
+        Size = UDim2.new(0, 48, 0, 48), Position = UDim2.new(0.5, -24, 0.5, -24),
+        BackgroundTransparency = 1, Image = logo,
+        ScaleType = Enum.ScaleType.Fit, ImageTransparency = 0, ZIndex = 5,
+    }, logoCont)
 
     local titleLabel = Util.Make("TextLabel", {
-        Text = title,
-        Font = Enum.Font.GothamBold,
-        TextSize = 22,
-        TextColor3 = Theme.TextPrimary,
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -40, 0, 34),
-        Position = UDim2.new(0, 20, 0.5, 0),
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 102,
-    }, root)
+        Text = title, Font = Enum.Font.GothamBold, TextSize = 20,
+        TextColor3 = Theme.TextPrimary, BackgroundTransparency = 1,
+        Size = UDim2.new(1, -24, 0, 28), Position = UDim2.new(0, 12, 0, 100),
+        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+    }, card)
 
     local statusLabel = Util.Make("TextLabel", {
-        Text = subtitle,
-        Font = Enum.Font.Gotham,
-        TextSize = 14,
-        TextColor3 = Theme.TextSecondary,
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -40, 0, 24),
-        Position = UDim2.new(0, 20, 0.5, 34),
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 102,
-    }, root)
+        Text = subtitle, Font = Enum.Font.Gotham, TextSize = 12,
+        TextColor3 = Theme.TextSecondary, BackgroundTransparency = 1,
+        Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 132),
+        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+    }, card)
 
     local barBack = Util.Make("Frame", {
-        Size = UDim2.new(0, 260, 0, 5),
-        Position = UDim2.new(0.5, -130, 0.5, 72),
-        BackgroundColor3 = Theme.Tertiary,
-        BorderSizePixel = 0,
-        ZIndex = 102,
-    }, root)
+        Size = UDim2.new(1, -40, 0, 5), Position = UDim2.new(0, 20, 0, 164),
+        BackgroundColor3 = Theme.Tertiary, BorderSizePixel = 0, ZIndex = 4,
+    }, card)
     Util.Corner(999, barBack)
 
     local bar = Util.Make("Frame", {
         Size = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = Theme.Accent,
-        BorderSizePixel = 0,
-        ZIndex = 103,
+        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 5,
     }, barBack)
     Util.Corner(999, bar)
 
-    Util.Tween(root, {BackgroundTransparency = 0.08}, 0.2)
-    Util.Tween(glow, {BackgroundTransparency = 0.72}, 0.35)
+    local barGlow = Util.Make("Frame", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.AccentGlow,
+        BackgroundTransparency = 0.6, BorderSizePixel = 0, ZIndex = 6,
+    }, bar)
+    Util.Corner(999, barGlow)
+
+    Util.Make("TextLabel", {
+        Text = "v2.0  •  Potassium Edition", Font = Enum.Font.Code, TextSize = 10,
+        TextColor3 = Theme.TextDisabled, BackgroundTransparency = 1,
+        Size = UDim2.new(1, -24, 0, 16), Position = UDim2.new(0, 12, 0, 192),
+        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+    }, card)
+
+    task.spawn(function()
+        while sg and sg.Parent do
+            Util.Tween(barGlow, {BackgroundTransparency=0.85}, 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(0.85)
+            if not (sg and sg.Parent) then break end
+            Util.Tween(barGlow, {BackgroundTransparency=0.45}, 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(0.85)
+        end
+    end)
+
     if duration then
         Util.Tween(bar, {Size = UDim2.new(1, 0, 1, 0)}, duration, Enum.EasingStyle.Linear)
     end
 
     local loader = {}
     function loader:SetStatus(text)
-        statusLabel.Text = tostring(text or "")
+        if statusLabel and statusLabel.Parent then
+            statusLabel.Text = tostring(text or "")
+        end
     end
     function loader:SetProgress(value)
         value = math.clamp(tonumber(value) or 0, 0, 1)
-        Util.Tween(bar, {Size = UDim2.new(value, 0, 1, 0)}, 0.2)
+        if bar and bar.Parent then
+            Util.Tween(bar, {Size = UDim2.new(value, 0, 1, 0)}, 0.2)
+        end
     end
     function loader:Close(fadeTime)
-        fadeTime = fadeTime or 0.25
+        fadeTime = fadeTime or 0.35
+        if not (sg and sg.Parent) then return end
         Util.Tween(root, {BackgroundTransparency = 1}, fadeTime)
+        Util.Tween(card, {BackgroundTransparency = 1}, fadeTime)
         Util.Tween(glow, {BackgroundTransparency = 1}, fadeTime)
-        task.delay(fadeTime, function()
-            local brandLogo = mount and mount:FindFirstChild("BrandLogo", true)
-            if brandLogo and brandLogo:IsA("ImageLabel") then
-                brandLogo.BackgroundTransparency = 1
-                brandLogo.Image = resolveImage(SyntraBrandUrl, "Syntra.png")
-            end
-            if root and root.Parent then root:Destroy() end
+        task.delay(fadeTime + 0.05, function()
             if sg and sg.Parent then sg:Destroy() end
         end)
     end
