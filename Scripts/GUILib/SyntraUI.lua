@@ -37,35 +37,41 @@ do
 end
 
 -- ══════════════════════════════════════════════════════
---  THEME
+--  THEME  v5.0  Glassmorphism
 -- ══════════════════════════════════════════════════════
 local Theme = {
-    -- Backgrounds (deep midnight purple-navy)
-    Background    = Color3.fromRGB(9,   11,  19),
-    Secondary     = Color3.fromRGB(13,  16,  26),
-    Tertiary      = Color3.fromRGB(19,  23,  37),
-    Elevated      = Color3.fromRGB(24,  29,  46),
-    Surface       = Color3.fromRGB(16,  20,  32),
+    -- Glass base backgrounds
+    BgBase        = Color3.fromRGB(8,   10,  18),
+    BgSurface     = Color3.fromRGB(16,  18,  30),
+    BgCard        = Color3.fromRGB(22,  24,  40),
+    BgElevated    = Color3.fromRGB(28,  30,  50),
+    -- Legacy aliases (backwards-compat)
+    Background    = Color3.fromRGB(8,   10,  18),
+    Secondary     = Color3.fromRGB(16,  18,  30),
+    Tertiary      = Color3.fromRGB(22,  24,  40),
+    Elevated      = Color3.fromRGB(28,  30,  50),
+    Surface       = Color3.fromRGB(20,  22,  36),
     -- Accent (indigo-violet)
-    Accent        = Color3.fromRGB(110, 86,  255),
-    AccentDark    = Color3.fromRGB(70,  52,  180),
-    AccentGlow    = Color3.fromRGB(155, 135, 255),
-    AccentSoft    = Color3.fromRGB(38,  30,  90),
-    AccentLine    = Color3.fromRGB(110, 86,  255),
+    Accent        = Color3.fromRGB(118, 92,  255),
+    AccentDark    = Color3.fromRGB(72,  52,  185),
+    AccentGlow    = Color3.fromRGB(170, 148, 255),
+    AccentSoft    = Color3.fromRGB(40,  32,  95),
+    AccentLine    = Color3.fromRGB(118, 92,  255),
+    -- Glass borders (white used at high transparency)
+    GlassWhite    = Color3.fromRGB(255, 255, 255),
+    Border        = Color3.fromRGB(255, 255, 255),   -- used at T=0.88 for glass look
+    BorderLight   = Color3.fromRGB(255, 255, 255),
+    Separator     = Color3.fromRGB(255, 255, 255),   -- used at T=0.92 for glass look
+    Shadow        = Color3.fromRGB(0,   0,   0),
     -- Text
-    TextPrimary   = Color3.fromRGB(232, 234, 248),
-    TextSecondary = Color3.fromRGB(128, 136, 168),
-    TextDisabled  = Color3.fromRGB(60,  68,  96),
+    TextPrimary   = Color3.fromRGB(235, 237, 252),
+    TextSecondary = Color3.fromRGB(130, 138, 170),
+    TextDisabled  = Color3.fromRGB(58,  66,  96),
     -- States
     Success       = Color3.fromRGB(52,  211, 153),
     Warning       = Color3.fromRGB(251, 191, 36),
     Error         = Color3.fromRGB(248, 113, 113),
     Info          = Color3.fromRGB(56,  189, 248),
-    -- Borders
-    Border        = Color3.fromRGB(28,  34,  54),
-    BorderLight   = Color3.fromRGB(44,  52,  80),
-    Separator     = Color3.fromRGB(19,  23,  37),
-    Shadow        = Color3.fromRGB(0,   0,   0),
 }
 
 -- ══════════════════════════════════════════════════════
@@ -327,17 +333,18 @@ function SyntraUI:Notify(options)
     local accentColor = Theme[ntype] or Theme.Info
     local icon        = NOTIF_ICONS[ntype] or "ℹ"
 
-    -- Karte
+    -- Glass-Karte
     local card = Util.Make("Frame", {
-        Name             = "Notif",
-        Size             = UDim2.new(1, 0, 0, 76),
-        BackgroundColor3 = Theme.Secondary,
-        ClipsDescendants = true,
-        Position         = UDim2.new(1, 20, 0, 0),
-        BorderSizePixel  = 0,
+        Name                   = "Notif",
+        Size                   = UDim2.new(1, 0, 0, 76),
+        BackgroundColor3       = Theme.BgCard,
+        BackgroundTransparency = 0.12,
+        ClipsDescendants       = true,
+        Position               = UDim2.new(1, 20, 0, 0),
+        BorderSizePixel        = 0,
     }, NotifHolder)
-    Util.Corner(10, card)
-    Util.Stroke(Theme.Border, 1, card)
+    Util.Corner(12, card)
+    Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.86 }, card)
 
     -- Linker Akzentstreifen (breiter + Glow-Effekt durch zwei Ebenen)
     Util.Make("Frame", {
@@ -457,64 +464,58 @@ function SyntraUI:CreateWindow(options)
 
     -- ── Haupt-Frame ──────────────────────────────────────
     local Main = Util.Make("Frame", {
-        Name             = "Main",
-        Size             = UDim2.new(winSize.X.Scale, winSize.X.Offset, 0, 0),
-        Position         = winPos,
-        BackgroundColor3 = Theme.Background,
-        BorderSizePixel  = 0,
-        ClipsDescendants = true,
+        Name                   = "Main",
+        Size                   = UDim2.new(winSize.X.Scale, winSize.X.Offset, 0, 0),
+        Position               = winPos,
+        BackgroundColor3       = Theme.BgBase,
+        BackgroundTransparency = 0.06,
+        BorderSizePixel        = 0,
+        ClipsDescendants       = true,
     }, ScreenGui)
-    Util.Corner(12, Main)
-    Util.Stroke(Theme.Border, 1, Main)
-
-    -- Äußerer Glow-Ring
+    Util.Corner(14, Main)
     Util.Make("UIStroke", {
-        Color       = Theme.Accent,
-        Thickness   = 1,
-        Transparency = 0.82,
+        Color           = Theme.Accent,
+        Thickness       = 1,
+        Transparency    = 0.72,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     }, Main)
-
-    -- Schattenbild
-    Util.Make("ImageLabel", {
-        Name                   = "Shadow",
-        Size                   = UDim2.new(1, 46, 1, 46),
-        Position               = UDim2.new(0, -23, 0, -23),
-        BackgroundTransparency = 1,
-        Image                  = "rbxassetid://5554236805",
-        ImageColor3            = Color3.fromRGB(0, 0, 0),
-        ImageTransparency      = 0.55,
-        ScaleType              = Enum.ScaleType.Slice,
-        SliceCenter            = Rect.new(23, 23, 277, 277),
-        ZIndex                 = 0,
+    -- White glass top highlight
+    Util.Make("Frame", {
+        Size                   = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.86,
+        BorderSizePixel        = 0,
+        ZIndex                 = 10,
     }, Main)
 
     -- ── SIDEBAR ──────────────────────────────────────────
     local Sidebar = Util.Make("Frame", {
-        Name             = "Sidebar",
-        Size             = UDim2.new(0, sidebarWidth, 1, 0),
-        Position         = UDim2.new(0, 0, 0, 0),
-        BackgroundColor3 = Theme.Secondary,
-        BorderSizePixel  = 0,
-        ZIndex           = 3,
-        ClipsDescendants = true,
+        Name                   = "Sidebar",
+        Size                   = UDim2.new(0, sidebarWidth, 1, 0),
+        Position               = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3       = Theme.BgSurface,
+        BackgroundTransparency = 0.18,
+        BorderSizePixel        = 0,
+        ZIndex                 = 3,
+        ClipsDescendants       = true,
     }, Main)
 
-    -- Sidebar rechte Trennlinie
+    -- Sidebar rechte Glass-Trennlinie
     Util.Make("Frame", {
-        Size             = UDim2.new(0, 1, 1, 0),
-        Position         = UDim2.new(1, -1, 0, 0),
-        BackgroundColor3 = Theme.Separator,
-        BorderSizePixel  = 0,
-        ZIndex           = 6,
+        Size                   = UDim2.new(0, 1, 1, 0),
+        Position               = UDim2.new(1, -1, 0, 0),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.86,
+        BorderSizePixel        = 0,
+        ZIndex                 = 6,
     }, Sidebar)
 
     -- Sidebar Header (Logo + Titel)
     local SideHeader = Util.Make("Frame", {
-        Size             = UDim2.new(1, 0, 0, topbarHeight),
-        BackgroundColor3 = Theme.Secondary,
-        BorderSizePixel  = 0,
-        ZIndex           = 4,
+        Size                   = UDim2.new(1, 0, 0, topbarHeight),
+        BackgroundTransparency = 1,
+        BorderSizePixel        = 0,
+        ZIndex                 = 4,
     }, Sidebar)
 
     -- Logo-Box (passend zum Loading Screen Stil)
@@ -586,13 +587,14 @@ function SyntraUI:CreateWindow(options)
         ZIndex                 = 5,
     }, SideHeader)
 
-    -- Separator unter Header
+    -- Separator unter Header (Glass)
     Util.Make("Frame", {
-        Size             = UDim2.new(1, -24, 0, 1),
-        Position         = UDim2.new(0, 12, 0, topbarHeight - 1),
-        BackgroundColor3 = Theme.Separator,
-        BorderSizePixel  = 0,
-        ZIndex           = 5,
+        Size                   = UDim2.new(1, -24, 0, 1),
+        Position               = UDim2.new(0, 12, 0, topbarHeight - 1),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.88,
+        BorderSizePixel        = 0,
+        ZIndex                 = 5,
     }, Sidebar)
 
     -- Tab-Liste (scrollbar)
@@ -617,21 +619,23 @@ function SyntraUI:CreateWindow(options)
 
     -- ── TOPBAR ───────────────────────────────────────────
     local Titlebar = Util.Make("Frame", {
-        Name             = "Titlebar",
-        Size             = UDim2.new(1, -sidebarWidth, 0, topbarHeight),
-        Position         = UDim2.new(0, sidebarWidth, 0, 0),
-        BackgroundColor3 = Theme.Background,
-        BorderSizePixel  = 0,
-        ZIndex           = 3,
+        Name                   = "Titlebar",
+        Size                   = UDim2.new(1, -sidebarWidth, 0, topbarHeight),
+        Position               = UDim2.new(0, sidebarWidth, 0, 0),
+        BackgroundColor3       = Theme.BgSurface,
+        BackgroundTransparency = 0.10,
+        BorderSizePixel        = 0,
+        ZIndex                 = 3,
     }, Main)
 
-    -- Topbar Separator
+    -- Topbar Glass-Separator
     Util.Make("Frame", {
-        Size             = UDim2.new(1, 0, 0, 1),
-        Position         = UDim2.new(0, 0, 1, -1),
-        BackgroundColor3 = Theme.Separator,
-        BorderSizePixel  = 0,
-        ZIndex           = 4,
+        Size                   = UDim2.new(1, 0, 0, 1),
+        Position               = UDim2.new(0, 0, 1, -1),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.88,
+        BorderSizePixel        = 0,
+        ZIndex                 = 4,
     }, Titlebar)
 
     -- Aktiver Tab Name (bread crumb)
@@ -647,16 +651,17 @@ function SyntraUI:CreateWindow(options)
         ZIndex                 = 5,
     }, Titlebar)
 
-    -- Search Box (zentriert)
+    -- Search Box — Glass Pill (zentriert)
     local searchBox = Util.Make("Frame", {
-        Size             = UDim2.new(0, 200, 0, 32),
-        Position         = UDim2.new(0.5, -100, 0.5, -16),
-        BackgroundColor3 = Theme.Tertiary,
-        BorderSizePixel  = 0,
-        ZIndex           = 5,
+        Size                   = UDim2.new(0, 200, 0, 30),
+        Position               = UDim2.new(0.5, -100, 0.5, -15),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.92,
+        BorderSizePixel        = 0,
+        ZIndex                 = 5,
     }, Titlebar)
     Util.Corner(999, searchBox)
-    Util.Stroke(Theme.Border, 1, searchBox)
+    Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.84 }, searchBox)
 
     Util.Make("TextLabel", {
         Text                   = "⌕",
@@ -727,18 +732,20 @@ function SyntraUI:CreateWindow(options)
 
     -- ── FOOTER ───────────────────────────────────────────
     local Footer = Util.Make("Frame", {
-        Name             = "Footer",
-        Size             = UDim2.new(1, 0, 0, footerHeight),
-        Position         = UDim2.new(0, 0, 1, -footerHeight),
-        BackgroundColor3 = Theme.Secondary,
-        BorderSizePixel  = 0,
-        ZIndex           = 4,
+        Name                   = "Footer",
+        Size                   = UDim2.new(1, 0, 0, footerHeight),
+        Position               = UDim2.new(0, 0, 1, -footerHeight),
+        BackgroundColor3       = Theme.BgSurface,
+        BackgroundTransparency = 0.14,
+        BorderSizePixel        = 0,
+        ZIndex                 = 4,
     }, Main)
     Util.Make("Frame", {
-        Size             = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Theme.Separator,
-        BorderSizePixel  = 0,
-        ZIndex           = 5,
+        Size                   = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.88,
+        BorderSizePixel        = 0,
+        ZIndex                 = 5,
     }, Footer)
     -- Status-Dot links
     local statusDot = Util.Make("Frame", {
@@ -831,7 +838,7 @@ function SyntraUI:CreateWindow(options)
         Util.Tween(Main, {
             Size                   = winSize,
             Position               = winPos,
-            BackgroundTransparency = 0,
+            BackgroundTransparency = 0.06,
         }, 0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     end)
 
@@ -962,7 +969,7 @@ function SyntraUI:CreateWindow(options)
                 else
                     t._page.Visible = false
                 end
-                Util.Tween(t._btn, {BackgroundColor3 = Theme.AccentSoft, BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.15)
+                Util.Tween(t._btn, {BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.15)
                 Util.Tween(t._indicator, {BackgroundTransparency = 1, Size = UDim2.new(0, 3, 0, 14)}, 0.15)
             end
             -- Neue Page einblenden (Slide-in von leicht rechts)
@@ -972,8 +979,9 @@ function SyntraUI:CreateWindow(options)
                 Page.Visible = true
                 Util.Tween(Page, { Position = UDim2.new(0, 0, 0, 0) }, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             end)
-            Util.Tween(TabBtn, {BackgroundColor3 = Theme.AccentSoft, BackgroundTransparency = 0, TextColor3 = Theme.AccentGlow}, 0.15)
-            Util.Tween(Indicator, {BackgroundTransparency = 0, Size = UDim2.new(0, 3, 0, 20)}, 0.15)
+            -- Aktiver Tab: Accent glass pill
+            Util.Tween(TabBtn, {BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.70, TextColor3 = Theme.AccentGlow}, 0.18)
+            Util.Tween(Indicator, {BackgroundTransparency = 0, Size = UDim2.new(0, 3, 0, 20)}, 0.18)
             Window._activeTab = tab
             if Window._topbarTabLabel and Window._topbarTabLabel.Parent then
                 Window._topbarTabLabel.Text = tabName
@@ -987,12 +995,12 @@ function SyntraUI:CreateWindow(options)
         end)
         TabBtn.MouseEnter:Connect(function()
             if Window._activeTab ~= tab then
-                Util.Tween(TabBtn, {BackgroundColor3 = Theme.Elevated, BackgroundTransparency = 0.35, TextColor3 = Theme.TextPrimary}, 0.12)
+                Util.Tween(TabBtn, {BackgroundColor3 = Color3.new(1,1,1), BackgroundTransparency = 0.91, TextColor3 = Theme.TextPrimary}, 0.12)
             end
         end)
         TabBtn.MouseLeave:Connect(function()
             if Window._activeTab ~= tab then
-                Util.Tween(TabBtn, {BackgroundColor3 = Theme.Tertiary, BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.12)
+                Util.Tween(TabBtn, {BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.12)
             end
         end)
 
@@ -1006,19 +1014,19 @@ function SyntraUI:CreateWindow(options)
         -- ══════════════════════════════════════════════
         local Tab = {}
 
-        -- Interne Hilfsfunktion: Container-Frame
+        -- Glass Container (Glassmorphism card)
         local function makeContainer(height, clipChildren)
             local c = Util.Make("Frame", {
                 Size                   = UDim2.new(1, 0, 0, height),
-                BackgroundColor3       = Theme.Surface or Theme.Secondary,
-                BackgroundTransparency = 1,
+                BackgroundColor3       = Theme.BgCard,
+                BackgroundTransparency = 0.55,
                 BorderSizePixel        = 0,
                 ClipsDescendants       = clipChildren ~= false,
             }, Page)
-            Util.Corner(8, c)
-            Util.Stroke(Theme.Border, 1, c)
-            -- Einblend-Animation
-            Util.Tween(c, { BackgroundTransparency = 0 }, 0.18)
+            Util.Corner(10, c)
+            Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.88 }, c)
+            -- Glass fade-in
+            Util.Tween(c, { BackgroundTransparency = 0.42 }, 0.20)
             return c
         end
 
@@ -1049,21 +1057,23 @@ function SyntraUI:CreateWindow(options)
                 TextXAlignment         = Enum.TextXAlignment.Left,
             }, wrap)
 
-            -- Linie rechts
+            -- Glass-Trennlinie rechts
             Util.Make("Frame", {
-                Size             = UDim2.new(1, -120, 0, 1),
-                Position         = UDim2.new(0, 116, 0.5, 0),
-                BackgroundColor3 = Theme.Separator,
-                BorderSizePixel  = 0,
+                Size                   = UDim2.new(1, -120, 0, 1),
+                Position               = UDim2.new(0, 116, 0.5, 0),
+                BackgroundColor3       = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.90,
+                BorderSizePixel        = 0,
             }, wrap)
         end
 
         -- ── DIVIDER ────────────────────────────────────
         function Tab:AddDivider()
             Util.Make("Frame", {
-                Size             = UDim2.new(1, 0, 0, 1),
-                BackgroundColor3 = Theme.Separator,
-                BorderSizePixel  = 0,
+                Size                   = UDim2.new(1, 0, 0, 1),
+                BackgroundColor3       = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.90,
+                BorderSizePixel        = 0,
             }, Page)
         end
 
@@ -1160,38 +1170,42 @@ function SyntraUI:CreateWindow(options)
                 }, c)
             end
 
-            -- Pfeil rechts
-            Util.Make("TextLabel", {
-                Text                   = "›",
-                Font                   = Enum.Font.GothamBold,
-                TextSize               = 20,
-                TextColor3             = Theme.Accent,
-                BackgroundTransparency = 1,
-                Size                   = UDim2.new(0, 24, 1, 0),
-                Position               = UDim2.new(1, -28, 0, 0),
-                ZIndex                 = 2,
+            -- Accent-Pill rechts
+            local pill = Util.Make("Frame", {
+                Size             = UDim2.new(0, 48, 0, 22),
+                Position         = UDim2.new(1, -58, 0.5, -11),
+                BackgroundColor3 = Theme.Accent,
+                BackgroundTransparency = 0.58,
+                BorderSizePixel  = 0,
+                ZIndex           = 2,
             }, c)
+            Util.Corner(6, pill)
+            Util.Make("TextLabel", {
+                Text = "Run", Font = Enum.Font.GothamBold, TextSize = 10,
+                TextColor3 = Theme.AccentGlow, BackgroundTransparency = 1,
+                Size = UDim2.new(1,0,1,0), ZIndex = 3,
+            }, pill)
 
             local btn = Util.Make("TextButton", {
                 Size                   = UDim2.new(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 Text                   = "",
-                ZIndex                 = 3,
+                ZIndex                 = 4,
             }, c)
 
             btn.MouseButton1Click:Connect(function(x, y)
                 Util.Ripple(c, x, y)
-                Util.Tween(c, {BackgroundColor3 = Theme.Elevated}, 0.07)
-                task.delay(0.07, function()
-                    Util.Tween(c, {BackgroundColor3 = Theme.Surface or Theme.Secondary}, 0.18)
-                end)
+                Util.Tween(pill, {BackgroundTransparency = 0.20}, 0.08)
+                task.delay(0.12, function() Util.Tween(pill, {BackgroundTransparency = 0.58}, 0.20) end)
+                Util.Tween(c, {BackgroundTransparency = 0.28}, 0.08)
+                task.delay(0.12, function() Util.Tween(c, {BackgroundTransparency = 0.42}, 0.18) end)
                 bCallback()
             end)
             btn.MouseEnter:Connect(function()
-                Util.Tween(c, {BackgroundColor3 = Theme.Tertiary}, 0.12)
+                Util.Tween(c, {BackgroundTransparency = 0.28}, 0.12)
             end)
             btn.MouseLeave:Connect(function()
-                Util.Tween(c, {BackgroundColor3 = Theme.Surface or Theme.Secondary}, 0.12)
+                Util.Tween(c, {BackgroundTransparency = 0.42}, 0.12)
             end)
 
             return {
@@ -1239,13 +1253,14 @@ function SyntraUI:CreateWindow(options)
                 }, c)
             end
 
-            -- Switch-Track
+            -- Switch-Track (glass)
             local track = Util.Make("Frame", {
                 Size             = UDim2.new(0, 42, 0, 24),
                 Position         = UDim2.new(1, -54, 0.5, -12),
-                BackgroundColor3 = Theme.Border,
+                BackgroundColor3 = Theme.BgElevated,
             }, c)
             Util.Corner(999, track)
+            Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.88 }, track)
 
             -- Innerer Glow (nur sichtbar wenn aktiv)
             local glow = Util.Make("Frame", {
@@ -1287,10 +1302,10 @@ function SyntraUI:CreateWindow(options)
                     Util.Tween(knob,  {Position = UDim2.new(0, 21, 0.5, -9)}, 0.2)
                     Util.Tween(nameLabel, {TextColor3 = Theme.TextPrimary}, 0.15)
                 else
-                    Util.Tween(track, {BackgroundColor3 = Theme.Border}, 0.2)
+                    Util.Tween(track, {BackgroundColor3 = Theme.BgElevated}, 0.2)
                     Util.Tween(glow,  {BackgroundTransparency = 1}, 0.2)
                     Util.Tween(knob,  {Position = UDim2.new(0, 3, 0.5, -9)}, 0.2)
-                    Util.Tween(nameLabel, {TextColor3 = Theme.TextPrimary}, 0.15)
+                    Util.Tween(nameLabel, {TextColor3 = Theme.TextSecondary}, 0.15)
                 end
                 if not silent then tCallback(state) end
             end
@@ -1334,13 +1349,15 @@ function SyntraUI:CreateWindow(options)
                 TextXAlignment         = Enum.TextXAlignment.Left,
             }, c)
 
-            -- Wert-Anzeige
+            -- Wert-Anzeige (glass)
             local valBox = Util.Make("Frame", {
-                Size             = UDim2.new(0, 58, 0, 20),
-                Position         = UDim2.new(1, -70, 0, 6),
-                BackgroundColor3 = Theme.Tertiary,
+                Size                   = UDim2.new(0, 58, 0, 20),
+                Position               = UDim2.new(1, -70, 0, 6),
+                BackgroundColor3       = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.90,
             }, c)
             Util.Corner(5, valBox)
+            Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.84 }, valBox)
 
             local valLabel = Util.Make("TextLabel", {
                 Text                   = tostring(value) .. sSuffix,
@@ -1352,11 +1369,12 @@ function SyntraUI:CreateWindow(options)
                 TextXAlignment         = Enum.TextXAlignment.Center,
             }, valBox)
 
-            -- Track
+            -- Track (glass)
             local track = Util.Make("Frame", {
-                Size             = UDim2.new(1, -24, 0, 6),
-                Position         = UDim2.new(0, 12, 0, 40),
-                BackgroundColor3 = Theme.Border,
+                Size                   = UDim2.new(1, -24, 0, 6),
+                Position               = UDim2.new(0, 12, 0, 40),
+                BackgroundColor3       = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.88,
             }, c)
             Util.Corner(999, track)
 
@@ -1462,12 +1480,13 @@ function SyntraUI:CreateWindow(options)
             }, c)
 
             local inputBg = Util.Make("Frame", {
-                Size             = UDim2.new(1, -24, 0, 26),
-                Position         = UDim2.new(0, 12, 0, 28),
-                BackgroundColor3 = Theme.Tertiary,
+                Size                   = UDim2.new(1, -24, 0, 26),
+                Position               = UDim2.new(0, 12, 0, 28),
+                BackgroundColor3       = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.90,
             }, c)
             Util.Corner(6, inputBg)
-            local stroke = Util.Stroke(Theme.Separator, 1, inputBg)
+            local stroke = Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.84 }, inputBg)
 
             local tb = Util.Make("TextBox", {
                 Size              = UDim2.new(1, -14, 1, 0),
@@ -1484,12 +1503,12 @@ function SyntraUI:CreateWindow(options)
             }, inputBg)
 
             tb.Focused:Connect(function()
-                Util.Tween(stroke, {Color = Theme.Accent}, 0.15)
-                Util.Tween(inputBg, {BackgroundColor3 = Theme.Elevated}, 0.15)
+                Util.Tween(stroke, {Color = Theme.Accent, Transparency = 0.50}, 0.15)
+                Util.Tween(inputBg, {BackgroundTransparency = 0.82}, 0.15)
             end)
             tb.FocusLost:Connect(function(enter)
-                Util.Tween(stroke, {Color = Theme.Separator}, 0.15)
-                Util.Tween(inputBg, {BackgroundColor3 = Theme.Tertiary}, 0.15)
+                Util.Tween(stroke, {Color = Color3.new(1,1,1), Transparency = 0.84}, 0.15)
+                Util.Tween(inputBg, {BackgroundTransparency = 0.90}, 0.15)
                 tbCallback(tb.Text, enter)
             end)
 
@@ -1512,16 +1531,17 @@ function SyntraUI:CreateWindow(options)
             local ddOpen    = false
             local listH     = math.min(#ddOptions * 30, 150)
 
-            -- Haupt-Frame (kein clip, damit das Menü überlappt)
+            -- Dropdown container (glass, kein clip)
             local c = Util.Make("Frame", {
-                Size             = UDim2.new(1, 0, 0, 38),
-                BackgroundColor3 = Theme.Secondary,
-                BorderSizePixel  = 0,
-                ClipsDescendants = false,
-                ZIndex           = 5,
+                Size                   = UDim2.new(1, 0, 0, 38),
+                BackgroundColor3       = Theme.BgCard,
+                BackgroundTransparency = 0.42,
+                BorderSizePixel        = 0,
+                ClipsDescendants       = false,
+                ZIndex                 = 5,
             }, Page)
-            Util.Corner(8, c)
-            Util.Stroke(Theme.Border, 1, c)
+            Util.Corner(10, c)
+            Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.88 }, c)
 
             Util.Make("TextLabel", {
                 Text                   = ddName,
@@ -1559,17 +1579,18 @@ function SyntraUI:CreateWindow(options)
                 ZIndex                 = 6,
             }, c)
 
-            -- Dropdown-Menü
+            -- Dropdown-Menu (glass)
             local menu = Util.Make("Frame", {
-                Size             = UDim2.new(1, 0, 0, 0),
-                Position         = UDim2.new(0, 0, 1, 5),
-                BackgroundColor3 = Theme.Elevated,
-                ClipsDescendants = true,
-                Visible          = false,
-                ZIndex           = 12,
+                Size                   = UDim2.new(1, 0, 0, 0),
+                Position               = UDim2.new(0, 0, 1, 5),
+                BackgroundColor3       = Theme.BgElevated,
+                BackgroundTransparency = 0.10,
+                ClipsDescendants       = true,
+                Visible                = false,
+                ZIndex                 = 12,
             }, c)
-            Util.Corner(8, menu)
-            Util.Stroke(Theme.BorderLight, 1, menu)
+            Util.Corner(10, menu)
+            Util.Make("UIStroke", { Color = Color3.new(1,1,1), Thickness = 1, Transparency = 0.82 }, menu)
             Util.Make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder}, menu)
             Util.Padding(4, 4, 0, 0, menu)
 
@@ -2124,7 +2145,7 @@ function SyntraUI:CreateWindow(options)
 
         st:AddParagraph({
             Title   = "SyntraUI",
-            Content = "v4.0 – Potassium Edition  |  by Lorthanyx",
+            Content = "v5.0 – Glassmorphism Edition  |  by Lorthanyx",
         })
 
         st:AddParagraph({
@@ -2212,23 +2233,23 @@ function SyntraUI:ShowLoadingScreen(options)
     Util.Corner(999, glowBlob)
 
     -- ── Card ─────────────────────────────────────────────
-    local cardW, cardH = 340, 280
+    local cardW, cardH = 340, 290
     local card = Util.Make("Frame", {
-        Size             = UDim2.new(0, cardW, 0, cardH),
-        Position         = UDim2.new(0.5, -cardW/2, 0.5, -cardH/2 + 20),
-        BackgroundColor3 = Theme.Secondary,
+        Size                   = UDim2.new(0, cardW, 0, cardH),
+        Position               = UDim2.new(0.5, -cardW/2, 0.5, -cardH/2 + 20),
+        BackgroundColor3       = Theme.BgCard,
         BackgroundTransparency = 1,
-        BorderSizePixel  = 0,
-        ZIndex           = 3,
-        ClipsDescendants = true,
+        BorderSizePixel        = 0,
+        ZIndex                 = 3,
+        ClipsDescendants       = true,
     }, sg)
-    Util.Corner(16, card)
+    Util.Corner(18, card)
 
-    -- Accent-Stroke
+    -- Glass white border
     local cardStroke = Util.Make("UIStroke", {
-        Color        = Theme.Accent,
+        Color        = Color3.new(1, 1, 1),
         Thickness    = 1,
-        Transparency = 0.6,
+        Transparency = 0.82,
     }, card)
 
     -- Accent-Balken oben
@@ -2331,14 +2352,15 @@ function SyntraUI:ShowLoadingScreen(options)
         ZIndex                 = 4,
     }, card)
 
-    -- Fortschrittsbalken Hintergrund
+    -- Fortschrittsbalken Hintergrund (glass)
     local barBack = Util.Make("Frame", {
-        Size             = UDim2.new(1, -48, 0, 6),
-        Position         = UDim2.new(0, 24, 0, 182),
-        BackgroundColor3 = Theme.Tertiary,
-        BorderSizePixel  = 0,
-        ZIndex           = 4,
-        ClipsDescendants = true,
+        Size                   = UDim2.new(1, -48, 0, 6),
+        Position               = UDim2.new(0, 24, 0, 182),
+        BackgroundColor3       = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.88,
+        BorderSizePixel        = 0,
+        ZIndex                 = 4,
+        ClipsDescendants       = true,
     }, card)
     Util.Corner(999, barBack)
 
@@ -2364,7 +2386,7 @@ function SyntraUI:ShowLoadingScreen(options)
 
     -- Version-Label
     Util.Make("TextLabel", {
-        Text                   = "v4.0  ·  Potassium Edition",
+        Text                   = "v5.0  ·  Glassmorphism Edition",
         Font                   = Enum.Font.Code,
         TextSize               = 10,
         TextColor3             = Theme.TextDisabled,
@@ -2380,7 +2402,7 @@ function SyntraUI:ShowLoadingScreen(options)
         task.wait(0.05)
         card.Size = UDim2.new(0, cardW * 0.88, 0, cardH * 0.88)
         Util.Tween(card, {
-            BackgroundTransparency = 0,
+            BackgroundTransparency = 0.12,
             Size                   = UDim2.new(0, cardW, 0, cardH),
             Position               = UDim2.new(0.5, -cardW/2, 0.5, -cardH/2),
         }, 0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
