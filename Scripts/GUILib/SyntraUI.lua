@@ -517,36 +517,48 @@ function SyntraUI:CreateWindow(options)
         ZIndex           = 4,
     }, Sidebar)
 
-    -- Logo-Hintergrund (kleines farbiges Quadrat)
+    -- Logo-Box (passend zum Loading Screen Stil)
     local logoBox = Util.Make("Frame", {
-        Size             = UDim2.new(0, 30, 0, 30),
-        Position         = UDim2.new(0, 12, 0.5, -15),
+        Size             = UDim2.new(0, 32, 0, 32),
+        Position         = UDim2.new(0, 11, 0.5, -16),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel  = 0,
         ZIndex           = 5,
     }, SideHeader)
-    Util.Corner(8, logoBox)
+    Util.Corner(9, logoBox)
+    Util.Make("UIStroke", {
+        Color        = Theme.AccentGlow,
+        Thickness    = 1,
+        Transparency = 0.5,
+    }, logoBox)
     -- Fallback-Buchstabe
     Util.Make("TextLabel", {
         Text                   = tostring(title):sub(1,1):upper(),
         Font                   = Enum.Font.GothamBlack,
-        TextSize               = 15,
+        TextSize               = 16,
         TextColor3             = Color3.new(1,1,1),
         BackgroundTransparency = 1,
         Size                   = UDim2.new(1,0,1,0),
         ZIndex                 = 6,
     }, logoBox)
-    -- Logo async laden
+    -- Logo async laden (Fade-in)
     local logoImg = Util.Make("ImageLabel", {
-        Size                   = UDim2.new(1, 0, 1, 0),
+        Size                   = UDim2.new(0.85, 0, 0.85, 0),
+        Position               = UDim2.new(0.075, 0, 0.075, 0),
         BackgroundTransparency = 1,
         Image                  = "",
         ScaleType              = Enum.ScaleType.Fit,
+        ImageTransparency      = 1,
         ZIndex                 = 7,
     }, logoBox)
     task.spawn(function()
         local img = resolveImage(logo, "Syntra.png")
-        if logoImg and logoImg.Parent then logoImg.Image = img or "" end
+        if logoImg and logoImg.Parent then
+            logoImg.Image = img or ""
+            if img and img ~= "" then
+                Util.Tween(logoImg, { ImageTransparency = 0 }, 0.4)
+            end
+        end
     end)
 
     Util.Make("TextLabel", {
@@ -805,9 +817,23 @@ function SyntraUI:CreateWindow(options)
     local normalPos  = winPos
     local tabs       = {}
 
-    -- Öffnungs-Animation
+    -- Pop-in Animation
+    local popW = winSize.X.Offset
+    local popH = winSize.Y.Offset
+    Main.Size = UDim2.new(0, popW * 0.88, 0, popH * 0.88)
+    Main.Position = UDim2.new(
+        winPos.X.Scale, winPos.X.Offset + popW * 0.06,
+        winPos.Y.Scale, winPos.Y.Offset + popH * 0.06
+    )
     Main.BackgroundTransparency = 1
-    Util.Tween(Main, { Size = winSize, BackgroundTransparency = 0 }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    task.spawn(function()
+        task.wait(0.04)
+        Util.Tween(Main, {
+            Size                   = winSize,
+            Position               = winPos,
+            BackgroundTransparency = 0,
+        }, 0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end)
 
     CloseBtn.MouseButton1Click:Connect(function()
         Util.Ripple(closeDot)
@@ -2126,7 +2152,7 @@ function SyntraUI:CreateWindow(options)
 end -- CreateWindow
 
 -- ══════════════════════════════════════════════════════
---  THEME-API
+--  LOADING SCREEN
 -- ══════════════════════════════════════════════════════
 function SyntraUI:ShowLoadingScreen(options)
     options = options or {}
@@ -2139,7 +2165,23 @@ function SyntraUI:ShowLoadingScreen(options)
     local old = guiParent:FindFirstChild("SyntraUI_LoadingGui")
     if old then old:Destroy() end
 
-    -- Floating card loading screen (NO fullscreen overlay)
+    -- ── Blur auf Camera ──────────────────────────────────
+    local camera = workspace.CurrentCamera
+    local blurEffect = nil
+    if camera then
+        pcall(function()
+            local existing = camera:FindFirstChildOfClass("BlurEffect")
+            if existing then existing:Destroy() end
+            blurEffect = Instance.new("BlurEffect")
+            blurEffect.Size = 0
+            blurEffect.Parent = camera
+            -- Blur einblenden
+            local t = TweenService:Create(blurEffect, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = 20})
+            t:Play()
+        end)
+    end
+
+    -- ── ScreenGui ────────────────────────────────────────
     local sg = Util.Make("ScreenGui", {
         Name           = "SyntraUI_LoadingGui",
         ResetOnSpawn   = false,
@@ -2148,140 +2190,231 @@ function SyntraUI:ShowLoadingScreen(options)
         DisplayOrder   = 200,
     }, guiParent)
 
-    -- Glow hinter der Card (kein Fullscreen, nur rund um Card)
-    local glow = Util.Make("Frame", {
-        Size             = UDim2.new(0, 340, 0, 260),
-        Position         = UDim2.new(0.5, -170, 0.5, -130),
-        BackgroundColor3 = Theme.Accent,
-        BackgroundTransparency = 0.80,
-        BorderSizePixel  = 0,
-        ZIndex           = 1,
+    -- Dunkles Semi-Transparent Overlay (kein Vollbild-Block, nur Dimmer)
+    local overlay = Util.Make("Frame", {
+        Size                   = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3       = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel        = 0,
+        ZIndex                 = 1,
     }, sg)
-    Util.Corner(999, glow)
+    Util.Tween(overlay, { BackgroundTransparency = 0.45 }, 0.4)
 
-    -- Card (floating, zentriert, keine Hintergrundverdunklung)
+    -- Äußerer Glow-Blob
+    local glowBlob = Util.Make("Frame", {
+        Size                   = UDim2.new(0, 380, 0, 320),
+        Position               = UDim2.new(0.5, -190, 0.5, -160),
+        BackgroundColor3       = Theme.Accent,
+        BackgroundTransparency = 0.88,
+        BorderSizePixel        = 0,
+        ZIndex                 = 2,
+    }, sg)
+    Util.Corner(999, glowBlob)
+
+    -- ── Card ─────────────────────────────────────────────
+    local cardW, cardH = 340, 280
     local card = Util.Make("Frame", {
-        Size             = UDim2.new(0, 300, 0, 230),
-        Position         = UDim2.new(0.5, -150, 0.5, -115),
+        Size             = UDim2.new(0, cardW, 0, cardH),
+        Position         = UDim2.new(0.5, -cardW/2, 0.5, -cardH/2 + 20),
         BackgroundColor3 = Theme.Secondary,
         BackgroundTransparency = 1,
         BorderSizePixel  = 0,
-        ZIndex           = 2,
+        ZIndex           = 3,
+        ClipsDescendants = true,
     }, sg)
-    Util.Corner(14, card)
-    Util.Stroke(Theme.Border, 1, card)
+    Util.Corner(16, card)
 
-    -- Card Fade-in + Slide-up
-    card.Position = UDim2.new(0.5, -150, 0.5, -95)
-    Util.Tween(card, { BackgroundTransparency = 0, Position = UDim2.new(0.5, -150, 0.5, -115) }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-    -- root-Alias für Close() Kompatibilität
-    local root = sg
-
-    -- Accent top strip
-    local strip = Util.Make("Frame", {
-        Size = UDim2.new(1, 0, 0, 3),
-        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 4,
+    -- Accent-Stroke
+    local cardStroke = Util.Make("UIStroke", {
+        Color        = Theme.Accent,
+        Thickness    = 1,
+        Transparency = 0.6,
     }, card)
-    Util.Corner(12, strip)
+
+    -- Accent-Balken oben
+    local topBar = Util.Make("Frame", {
+        Size             = UDim2.new(1, 0, 0, 3),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel  = 0,
+        ZIndex           = 5,
+    }, card)
+    -- Runde untere Hälfte von topBar abschneiden
     Util.Make("Frame", {
-        Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.new(0, 0, 0.5, 0),
-        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 4,
-    }, strip)
+        Size             = UDim2.new(1, 0, 0.5, 0),
+        Position         = UDim2.new(0, 0, 0.5, 0),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel  = 0,
+        ZIndex           = 5,
+    }, topBar)
 
-    -- Logo (transparent background, centered)
-    local logoCont = Util.Make("Frame", {
-        Size = UDim2.new(0, 64, 0, 64), Position = UDim2.new(0.5, -32, 0, 18),
-        BackgroundColor3 = Theme.Tertiary, BorderSizePixel = 0, ZIndex = 4,
+    -- Logo-Box (hochwertiger Stil: runder Gradient-Hintergrund)
+    local logoBox = Util.Make("Frame", {
+        Size             = UDim2.new(0, 72, 0, 72),
+        Position         = UDim2.new(0.5, -36, 0, 24),
+        BackgroundColor3 = Theme.Accent,
+        BackgroundTransparency = 0.0,
+        BorderSizePixel  = 0,
+        ZIndex           = 4,
     }, card)
-    Util.Corner(16, logoCont)
-    Util.Stroke(Theme.Border, 1, logoCont)
-    Util.Make("TextLabel", {
-        Text                   = tostring(title):sub(1, 1):upper(),
+    Util.Corner(20, logoBox)
+    -- Inner glow ring
+    Util.Make("UIStroke", {
+        Color        = Theme.AccentGlow,
+        Thickness    = 1.5,
+        Transparency = 0.4,
+    }, logoBox)
+    -- Fallback-Buchstabe
+    local logoFallback = Util.Make("TextLabel", {
+        Text                   = tostring(title):sub(1,1):upper(),
         Font                   = Enum.Font.GothamBlack,
-        TextSize               = 28,
-        TextColor3             = Theme.AccentGlow,
+        TextSize               = 32,
+        TextColor3             = Color3.new(1,1,1),
         BackgroundTransparency = 1,
         Size                   = UDim2.new(1, 0, 1, 0),
         TextXAlignment         = Enum.TextXAlignment.Center,
         ZIndex                 = 5,
-    }, logoCont)
+    }, logoBox)
+    -- Echtes Logo async
     local logoImg = Util.Make("ImageLabel", {
-        Size = UDim2.new(0, 48, 0, 48), Position = UDim2.new(0.5, -24, 0.5, -24),
-        BackgroundTransparency = 1, Image = "",
-        ScaleType = Enum.ScaleType.Fit, ImageTransparency = 0, ZIndex = 6,
-    }, logoCont)
+        Size                   = UDim2.new(0.85, 0, 0.85, 0),
+        Position               = UDim2.new(0.075, 0, 0.075, 0),
+        BackgroundTransparency = 1,
+        Image                  = "",
+        ScaleType              = Enum.ScaleType.Fit,
+        ImageTransparency      = 1,
+        ZIndex                 = 6,
+    }, logoBox)
     task.spawn(function()
         local img = resolveImage(logoUrl, "SyntraUI.png")
-        if logoImg and logoImg.Parent then logoImg.Image = img or "" end
+        if logoImg and logoImg.Parent then
+            logoImg.Image = img or ""
+            if img and img ~= "" then
+                Util.Tween(logoImg, { ImageTransparency = 0 }, 0.3)
+            end
+        end
     end)
 
+    -- Puls-Animation auf Logo-Box
+    task.spawn(function()
+        while sg and sg.Parent do
+            Util.Tween(logoBox, { BackgroundTransparency = 0.15 }, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(1.0)
+            if not (sg and sg.Parent) then break end
+            Util.Tween(logoBox, { BackgroundTransparency = 0.0 }, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(1.0)
+        end
+    end)
+
+    -- Titel
     local titleLabel = Util.Make("TextLabel", {
-        Text = title, Font = Enum.Font.GothamBold, TextSize = 20,
-        TextColor3 = Theme.TextPrimary, BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 0, 28), Position = UDim2.new(0, 12, 0, 100),
-        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+        Text                   = title,
+        Font                   = Enum.Font.GothamBold,
+        TextSize               = 22,
+        TextColor3             = Theme.TextPrimary,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, -32, 0, 30),
+        Position               = UDim2.new(0, 16, 0, 108),
+        TextXAlignment         = Enum.TextXAlignment.Center,
+        ZIndex                 = 4,
     }, card)
 
+    -- Status
     local statusLabel = Util.Make("TextLabel", {
-        Text = subtitle, Font = Enum.Font.Gotham, TextSize = 12,
-        TextColor3 = Theme.TextSecondary, BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 132),
-        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+        Text                   = subtitle,
+        Font                   = Enum.Font.Gotham,
+        TextSize               = 12,
+        TextColor3             = Theme.TextSecondary,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, -32, 0, 18),
+        Position               = UDim2.new(0, 16, 0, 143),
+        TextXAlignment         = Enum.TextXAlignment.Center,
+        ZIndex                 = 4,
     }, card)
 
+    -- Fortschrittsbalken Hintergrund
     local barBack = Util.Make("Frame", {
-        Size = UDim2.new(1, -40, 0, 5), Position = UDim2.new(0, 20, 0, 164),
-        BackgroundColor3 = Theme.Tertiary, BorderSizePixel = 0, ZIndex = 4,
+        Size             = UDim2.new(1, -48, 0, 6),
+        Position         = UDim2.new(0, 24, 0, 182),
+        BackgroundColor3 = Theme.Tertiary,
+        BorderSizePixel  = 0,
+        ZIndex           = 4,
         ClipsDescendants = true,
     }, card)
     Util.Corner(999, barBack)
 
+    -- Fortschrittsbalken
     local bar = Util.Make("Frame", {
-        Size = UDim2.new(0, 0, 1, 0),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 5,
+        Size             = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel  = 0,
+        ZIndex           = 5,
     }, barBack)
     Util.Corner(999, bar)
 
-    local barGlow = Util.Make("Frame", {
-        Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.AccentGlow,
-        BackgroundTransparency = 0.6, BorderSizePixel = 0, ZIndex = 6,
+    -- Glanz auf Bar
+    local barShine = Util.Make("Frame", {
+        Size                   = UDim2.new(0.4, 0, 1, 0),
+        Position               = UDim2.new(0.6, 0, 0, 0),
+        BackgroundColor3       = Color3.new(1,1,1),
+        BackgroundTransparency = 0.75,
+        BorderSizePixel        = 0,
+        ZIndex                 = 6,
     }, bar)
-    Util.Corner(999, barGlow)
+    Util.Corner(999, barShine)
 
+    -- Version-Label
     Util.Make("TextLabel", {
-        Text = "v4.0  •  Potassium Edition", Font = Enum.Font.Code, TextSize = 10,
-        TextColor3 = Theme.TextDisabled, BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 0, 16), Position = UDim2.new(0, 12, 0, 196),
-        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+        Text                   = "v4.0  ·  Potassium Edition",
+        Font                   = Enum.Font.Code,
+        TextSize               = 10,
+        TextColor3             = Theme.TextDisabled,
+        BackgroundTransparency = 1,
+        Size                   = UDim2.new(1, -32, 0, 16),
+        Position               = UDim2.new(0, 16, 0, 252),
+        TextXAlignment         = Enum.TextXAlignment.Center,
+        ZIndex                 = 4,
     }, card)
 
+    -- ── Card Pop-in Animation ────────────────────────────
+    task.spawn(function()
+        task.wait(0.05)
+        card.Size = UDim2.new(0, cardW * 0.88, 0, cardH * 0.88)
+        Util.Tween(card, {
+            BackgroundTransparency = 0,
+            Size                   = UDim2.new(0, cardW, 0, cardH),
+            Position               = UDim2.new(0.5, -cardW/2, 0.5, -cardH/2),
+        }, 0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end)
+
+    -- ── Shimmer auf Bar ──────────────────────────────────
     task.spawn(function()
         while sg and sg.Parent do
-            Util.Tween(barGlow, {BackgroundTransparency=0.85}, 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-            task.wait(0.85)
-            if not (sg and sg.Parent) then break end
-            Util.Tween(barGlow, {BackgroundTransparency=0.45}, 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-            task.wait(0.85)
+            if bar.Size.X.Scale > 0.05 then
+                Util.Tween(barShine, { BackgroundTransparency = 0.88 }, 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+                task.wait(0.65)
+                if not (sg and sg.Parent) then break end
+                Util.Tween(barShine, { BackgroundTransparency = 0.75 }, 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            end
+            task.wait(0.65)
         end
     end)
 
     local manualProgress = false
 
     if duration then
-        Util.Tween(bar, {Size = UDim2.new(1, 0, 1, 0)}, duration, Enum.EasingStyle.Linear)
+        Util.Tween(bar, { Size = UDim2.new(1, 0, 1, 0) }, duration, Enum.EasingStyle.Linear)
     else
         task.spawn(function()
             while sg and sg.Parent and not manualProgress do
-                bar.Size = UDim2.new(0.28, 0, 1, 0)
-                bar.Position = UDim2.new(-0.3, 0, 0, 0)
-                Util.Tween(bar, {Position = UDim2.new(1.05, 0, 0, 0)}, 1.05, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-                task.wait(1.1)
+                bar.Size     = UDim2.new(0.3, 0, 1, 0)
+                bar.Position = UDim2.new(-0.32, 0, 0, 0)
+                Util.Tween(bar, { Position = UDim2.new(1.02, 0, 0, 0) }, 1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+                task.wait(1.15)
             end
         end)
     end
 
+    -- ── Loader API ───────────────────────────────────────
     local loader = {}
     function loader:SetStatus(text)
         if statusLabel and statusLabel.Parent then
@@ -2292,28 +2425,49 @@ function SyntraUI:ShowLoadingScreen(options)
         manualProgress = true
         value = math.clamp(tonumber(value) or 0, 0, 1)
         if bar and bar.Parent then
-            Util.Tween(bar, {Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(value, 0, 1, 0)}, 0.2)
+            Util.Tween(bar, { Position = UDim2.new(0,0,0,0), Size = UDim2.new(value, 0, 1, 0) }, 0.25, Enum.EasingStyle.Quart)
         end
     end
     function loader:Close(fadeTime)
-        fadeTime = fadeTime or 0.38
+        fadeTime = fadeTime or 0.45
         if not (sg and sg.Parent) then return end
         manualProgress = true
-        -- Card slide-up + fade
-        Util.Tween(card, { BackgroundTransparency = 1, Position = UDim2.new(0.5, -150, 0.5, -135) }, fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-        Util.Tween(glow, { BackgroundTransparency = 1 }, fadeTime)
+
+        -- Blur ausblenden
+        if blurEffect and blurEffect.Parent then
+            local t = TweenService:Create(blurEffect, TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = 0})
+            t:Play()
+            task.delay(fadeTime + 0.1, function()
+                if blurEffect and blurEffect.Parent then blurEffect:Destroy() end
+            end)
+        end
+
+        -- Overlay abdunkeln ausblenden
+        Util.Tween(overlay, { BackgroundTransparency = 1 }, fadeTime)
+        Util.Tween(glowBlob, { BackgroundTransparency = 1 }, fadeTime * 0.8)
+
+        -- Card: Scale down + fade (schöne Pop-out Animation)
+        Util.Tween(card, {
+            BackgroundTransparency = 1,
+            Size     = UDim2.new(0, cardW * 0.9, 0, cardH * 0.9),
+            Position = UDim2.new(0.5, -(cardW*0.9)/2, 0.5, -(cardH*0.9)/2),
+        }, fadeTime * 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+        -- Inhalte schneller ausblenden
         for _, obj in ipairs(card:GetDescendants()) do
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                Util.Tween(obj, { TextTransparency = 1, BackgroundTransparency = 1 }, fadeTime * 0.7)
-            elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-                Util.Tween(obj, { ImageTransparency = 1, BackgroundTransparency = 1 }, fadeTime * 0.7)
+                Util.Tween(obj, { TextTransparency = 1 }, fadeTime * 0.5)
+            elseif obj:IsA("ImageLabel") then
+                Util.Tween(obj, { ImageTransparency = 1 }, fadeTime * 0.5)
             elseif obj:IsA("Frame") then
-                Util.Tween(obj, { BackgroundTransparency = 1 }, fadeTime * 0.7)
+                Util.Tween(obj, { BackgroundTransparency = 1 }, fadeTime * 0.6)
             elseif obj:IsA("UIStroke") then
-                Util.Tween(obj, { Transparency = 1 }, fadeTime * 0.7)
+                Util.Tween(obj, { Transparency = 1 }, fadeTime * 0.5)
             end
         end
-        task.delay(fadeTime + 0.05, function()
+        Util.Tween(cardStroke, { Transparency = 1 }, fadeTime * 0.5)
+
+        task.delay(fadeTime + 0.08, function()
             if sg and sg.Parent then sg:Destroy() end
         end)
     end
