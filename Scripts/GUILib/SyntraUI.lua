@@ -922,14 +922,30 @@ function SyntraUI:CreateWindow(options)
         table.insert(tabs, tab)
         applyTabSearch()
 
-        -- Aktivierungslogik
+        -- Aktivierungslogik mit Page-Übergangsanimation
         local function activateTab()
             for _, t in ipairs(tabs) do
-                t._page.Visible = false
+                if t._page.Visible then
+                    -- Aktive Page schnell ausblenden
+                    t._page.Position = UDim2.new(0, 0, 0, 0)
+                    Util.Tween(t._page, { Position = UDim2.new(-0.06, 0, 0, 0) }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                    task.delay(0.12, function()
+                        if t._page and t._page.Parent then t._page.Visible = false end
+                        t._page.Position = UDim2.new(0, 0, 0, 0)
+                    end)
+                else
+                    t._page.Visible = false
+                end
                 Util.Tween(t._btn, {BackgroundColor3 = Theme.AccentSoft, BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.15)
                 Util.Tween(t._indicator, {BackgroundTransparency = 1, Size = UDim2.new(0, 3, 0, 14)}, 0.15)
             end
-            Page.Visible = true
+            -- Neue Page einblenden (Slide-in von leicht rechts)
+            task.delay(0.1, function()
+                if not (Page and Page.Parent) then return end
+                Page.Position = UDim2.new(0.04, 0, 0, 0)
+                Page.Visible = true
+                Util.Tween(Page, { Position = UDim2.new(0, 0, 0, 0) }, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            end)
             Util.Tween(TabBtn, {BackgroundColor3 = Theme.AccentSoft, BackgroundTransparency = 0, TextColor3 = Theme.AccentGlow}, 0.15)
             Util.Tween(Indicator, {BackgroundTransparency = 0, Size = UDim2.new(0, 3, 0, 20)}, 0.15)
             Window._activeTab = tab
@@ -967,13 +983,16 @@ function SyntraUI:CreateWindow(options)
         -- Interne Hilfsfunktion: Container-Frame
         local function makeContainer(height, clipChildren)
             local c = Util.Make("Frame", {
-                Size             = UDim2.new(1, 0, 0, height),
-                BackgroundColor3 = Theme.Surface or Theme.Secondary,
-                BorderSizePixel  = 0,
-                ClipsDescendants = clipChildren ~= false,
+                Size                   = UDim2.new(1, 0, 0, height),
+                BackgroundColor3       = Theme.Surface or Theme.Secondary,
+                BackgroundTransparency = 1,
+                BorderSizePixel        = 0,
+                ClipsDescendants       = clipChildren ~= false,
             }, Page)
             Util.Corner(8, c)
             Util.Stroke(Theme.Border, 1, c)
+            -- Einblend-Animation
+            Util.Tween(c, { BackgroundTransparency = 0 }, 0.18)
             return c
         end
 
@@ -2120,47 +2139,44 @@ function SyntraUI:ShowLoadingScreen(options)
     local old = guiParent:FindFirstChild("SyntraUI_LoadingGui")
     if old then old:Destroy() end
 
-    -- Always use a dedicated full-screen ScreenGui so the loading screen
-    -- is visible regardless of whether the dashboard window is open yet.
+    -- Floating card loading screen (NO fullscreen overlay)
     local sg = Util.Make("ScreenGui", {
         Name           = "SyntraUI_LoadingGui",
         ResetOnSpawn   = false,
         IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        DisplayOrder   = 999,
+        DisplayOrder   = 200,
     }, guiParent)
 
-    -- Full-screen semi-transparent overlay
-    local root = Util.Make("Frame", {
-        Name                   = "SyntraUI_Loading",
-        Size                   = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3       = Theme.Background,
-        BackgroundTransparency = 0,
-        BorderSizePixel        = 0,
-        ZIndex                 = 1,
-    }, sg)
-
+    -- Glow hinter der Card (kein Fullscreen, nur rund um Card)
     local glow = Util.Make("Frame", {
-        Size = UDim2.new(0, 320, 0, 320),
-        Position = UDim2.new(0.5, -160, 0.5, -220),
+        Size             = UDim2.new(0, 340, 0, 260),
+        Position         = UDim2.new(0.5, -170, 0.5, -130),
         BackgroundColor3 = Theme.Accent,
-        BackgroundTransparency = 0.86,
-        BorderSizePixel = 0,
-        ZIndex = 2,
-    }, root)
+        BackgroundTransparency = 0.80,
+        BorderSizePixel  = 0,
+        ZIndex           = 1,
+    }, sg)
     Util.Corner(999, glow)
 
-    -- Card container
+    -- Card (floating, zentriert, keine Hintergrundverdunklung)
     local card = Util.Make("Frame", {
-        Size = UDim2.new(0, 290, 0, 220),
-        Position = UDim2.new(0.5, -145, 0.5, -110),
+        Size             = UDim2.new(0, 300, 0, 230),
+        Position         = UDim2.new(0.5, -150, 0.5, -115),
         BackgroundColor3 = Theme.Secondary,
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-    }, root)
-    Util.Corner(12, card)
+        BackgroundTransparency = 1,
+        BorderSizePixel  = 0,
+        ZIndex           = 2,
+    }, sg)
+    Util.Corner(14, card)
     Util.Stroke(Theme.Border, 1, card)
+
+    -- Card Fade-in + Slide-up
+    card.Position = UDim2.new(0.5, -150, 0.5, -95)
+    Util.Tween(card, { BackgroundTransparency = 0, Position = UDim2.new(0.5, -150, 0.5, -115) }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+    -- root-Alias für Close() Kompatibilität
+    local root = sg
 
     -- Accent top strip
     local strip = Util.Make("Frame", {
@@ -2235,9 +2251,9 @@ function SyntraUI:ShowLoadingScreen(options)
     Util.Corner(999, barGlow)
 
     Util.Make("TextLabel", {
-        Text = "v2.0  •  Potassium Edition", Font = Enum.Font.Code, TextSize = 10,
+        Text = "v4.0  •  Potassium Edition", Font = Enum.Font.Code, TextSize = 10,
         TextColor3 = Theme.TextDisabled, BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 0, 16), Position = UDim2.new(0, 12, 0, 192),
+        Size = UDim2.new(1, -24, 0, 16), Position = UDim2.new(0, 12, 0, 196),
         TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
     }, card)
 
@@ -2280,23 +2296,23 @@ function SyntraUI:ShowLoadingScreen(options)
         end
     end
     function loader:Close(fadeTime)
-        fadeTime = fadeTime or 0.35
+        fadeTime = fadeTime or 0.38
         if not (sg and sg.Parent) then return end
         manualProgress = true
-        for _, obj in ipairs(sg:GetDescendants()) do
+        -- Card slide-up + fade
+        Util.Tween(card, { BackgroundTransparency = 1, Position = UDim2.new(0.5, -150, 0.5, -135) }, fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        Util.Tween(glow, { BackgroundTransparency = 1 }, fadeTime)
+        for _, obj in ipairs(card:GetDescendants()) do
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                Util.Tween(obj, {TextTransparency = 1, BackgroundTransparency = 1}, fadeTime)
+                Util.Tween(obj, { TextTransparency = 1, BackgroundTransparency = 1 }, fadeTime * 0.7)
             elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-                Util.Tween(obj, {ImageTransparency = 1, BackgroundTransparency = 1}, fadeTime)
+                Util.Tween(obj, { ImageTransparency = 1, BackgroundTransparency = 1 }, fadeTime * 0.7)
             elseif obj:IsA("Frame") then
-                Util.Tween(obj, {BackgroundTransparency = 1}, fadeTime)
+                Util.Tween(obj, { BackgroundTransparency = 1 }, fadeTime * 0.7)
             elseif obj:IsA("UIStroke") then
-                Util.Tween(obj, {Transparency = 1}, fadeTime)
+                Util.Tween(obj, { Transparency = 1 }, fadeTime * 0.7)
             end
         end
-        Util.Tween(root, {BackgroundTransparency = 1}, fadeTime)
-        Util.Tween(card, {BackgroundTransparency = 1}, fadeTime)
-        Util.Tween(glow, {BackgroundTransparency = 1}, fadeTime)
         task.delay(fadeTime + 0.05, function()
             if sg and sg.Parent then sg:Destroy() end
         end)
