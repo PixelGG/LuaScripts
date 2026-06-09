@@ -445,7 +445,7 @@ function SyntraUI:CreateWindow(options)
     local sidebarWidth = options.SidebarWidth or 210
     local topbarHeight = options.TopbarHeight or 52
     local footerHeight = options.FooterHeight or 24
-    local footerText = options.Footer or "SyntraUI v4.0  ·  by Lorthanyx"
+    local footerText = options.Footer or "SyntraUI v5.0  ·  by Lorthanyx"
     local searchPlaceholder = options.SearchPlaceholder or "Search..."
 
     -- Alte Instanz aufräumen
@@ -518,19 +518,20 @@ function SyntraUI:CreateWindow(options)
         ZIndex                 = 4,
     }, Sidebar)
 
-    -- Logo-Box (passend zum Loading Screen Stil)
+    -- Logo-Box (glass + Accent-Glow Rand)
     local logoBox = Util.Make("Frame", {
-        Size             = UDim2.new(0, 32, 0, 32),
-        Position         = UDim2.new(0, 11, 0.5, -16),
-        BackgroundColor3 = Theme.Accent,
-        BorderSizePixel  = 0,
-        ZIndex           = 5,
+        Size                   = UDim2.new(0, 34, 0, 34),
+        Position               = UDim2.new(0, 10, 0.5, -17),
+        BackgroundColor3       = Theme.Accent,
+        BackgroundTransparency = 0.45,
+        BorderSizePixel        = 0,
+        ZIndex                 = 5,
     }, SideHeader)
-    Util.Corner(9, logoBox)
+    Util.Corner(10, logoBox)
     Util.Make("UIStroke", {
         Color        = Theme.AccentGlow,
-        Thickness    = 1,
-        Transparency = 0.5,
+        Thickness    = 1.5,
+        Transparency = 0.45,
     }, logoBox)
     -- Fallback-Buchstabe
     Util.Make("TextLabel", {
@@ -818,11 +819,12 @@ function SyntraUI:CreateWindow(options)
     Util.MakeDraggable(Main, Titlebar)
 
     -- ── STATE ─────────────────────────────────────────────
-    local minimized  = false
-    local maximized  = false
-    local normalSize = winSize
-    local normalPos  = winPos
-    local tabs       = {}
+    local minimized     = false
+    local maximized     = false
+    local normalSize    = winSize
+    local normalPos     = winPos
+    local tabs          = {}
+    local activePageGen = 0
 
     -- Pop-in Animation
     local popW = winSize.X.Offset
@@ -972,9 +974,12 @@ function SyntraUI:CreateWindow(options)
                 Util.Tween(t._btn, {BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}, 0.15)
                 Util.Tween(t._indicator, {BackgroundTransparency = 1, Size = UDim2.new(0, 3, 0, 14)}, 0.15)
             end
-            -- Neue Page einblenden (Slide-in von leicht rechts)
+            -- Neue Page einblenden (generation-guarded, verhindert doppelte Pages)
+            activePageGen = activePageGen + 1
+            local myGen = activePageGen
             task.delay(0.1, function()
                 if not (Page and Page.Parent) then return end
+                if activePageGen ~= myGen then return end
                 Page.Position = UDim2.new(0.04, 0, 0, 0)
                 Page.Visible = true
                 Util.Tween(Page, { Position = UDim2.new(0, 0, 0, 0) }, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
