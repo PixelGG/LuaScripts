@@ -163,7 +163,12 @@ function Util.MakeDraggable(frame, handle)
         if inp.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
         dragging  = true
         dragStart = inp.Position
-        startPos  = frame.Position
+        -- Position in reine Pixel-Offsets konvertieren (Scale-Anteil auflösen)
+        local vp = workspace.CurrentCamera.ViewportSize
+        startPos = UDim2.new(
+            0, frame.Position.X.Scale * vp.X + frame.Position.X.Offset,
+            0, frame.Position.Y.Scale * vp.Y + frame.Position.Y.Offset
+        )
     end)
 
     UserInputService.InputChanged:Connect(function(inp)
