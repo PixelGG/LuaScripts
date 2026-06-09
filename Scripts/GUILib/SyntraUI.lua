@@ -49,6 +49,10 @@ local PlayerGui = LocalPlayer and LocalPlayer:FindFirstChildOfClass("PlayerGui")
 local DEFAULT_TWEEN = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local FAST_TWEEN = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING_TWEEN = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SOFT_TWEEN = TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local SYNTRA_LOGO_URL = "https://raw.githubusercontent.com/PixelGG/RobloxExecuter/main/SyntraUI.png"
+local SYNTRA_LOGO_CACHE = "Syntra/SyntraUI.png"
+local ActiveTweens = setmetatable({}, { __mode = "k" })
 
 local Themes = {
     Midnight = {
@@ -195,7 +199,95 @@ local function getParent()
     return CoreGui or PlayerGui
 end
 
-local function tryCustomAsset(asset)
+local tryCustomAsset
+
+local function requestBody(url)
+    local req = request or http_request or (http and http.request) or (syn and syn.request) or (fluxus and fluxus.request)
+    if req then
+        local ok, response = pcall(function()
+            return req({
+                Url = url,
+                Method = "GET",
+                Headers = { ["User-Agent"] = "SyntraUI" }
+            })
+        end)
+
+        if ok and response and (response.Success or response.StatusCode == 200) and response.Body then
+            return response.Body
+        end
+    end
+
+    local ok, body = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if ok and body and body ~= "" then
+        return body
+    end
+
+    return nil
+end
+
+local function ensureFolderPath(path)
+    if typeof(makefolder) ~= "function" or typeof(isfolder) ~= "function" then
+        return false
+    end
+
+    local current = ""
+    for part in tostring(path):gmatch("[^/]+") do
+        current = current == "" and part or (current .. "/" .. part)
+        if not isfolder(current) then
+            local ok = pcall(makefolder, current)
+            if not ok then
+                return false
+            end
+        end
+    end
+
+    return true
+end
+
+local function resolveImageAsset(asset)
+    asset = asset or SYNTRA_LOGO_URL
+
+    if typeof(asset) ~= "string" or asset == "" then
+        return ""
+    end
+
+    if asset:lower() == "syntraui.png" then
+        asset = SYNTRA_LOGO_URL
+    end
+
+    if asset:find("http", 1, true) then
+        if typeof(getcustomasset) == "function"
+            and typeof(writefile) == "function"
+            and typeof(isfile) == "function"
+            and typeof(readfile) == "function" then
+
+            local cachePath = SYNTRA_LOGO_CACHE
+            if not isfile(cachePath) then
+                ensureFolderPath("Syntra")
+                local body = requestBody(asset)
+                if body and #body > 0 then
+                    pcall(writefile, cachePath, body)
+                end
+            end
+
+            if isfile(cachePath) then
+                local ok, result = pcall(getcustomasset, cachePath)
+                if ok and result then
+                    return result
+                end
+            end
+        end
+
+        return asset
+    end
+
+    return tryCustomAsset(asset)
+end
+
+tryCustomAsset = function(asset)
     if typeof(asset) ~= "string" or asset == "" then
         return ""
     end
@@ -268,7 +360,33 @@ local function tween(instance, info, properties)
         return nil
     end
 
+    ActiveTweens[instance] = ActiveTweens[instance] or {}
+    local activeForInstance = ActiveTweens[instance]
+
+    for property in pairs(properties or {}) do
+        if activeForInstance[property] then
+            pcall(function()
+                activeForInstance[property]:Cancel()
+            end)
+            activeForInstance[property] = nil
+        end
+    end
+
     local tweenObject = TweenService:Create(instance, info or DEFAULT_TWEEN, properties)
+    for property in pairs(properties or {}) do
+        activeForInstance[property] = tweenObject
+    end
+
+    tweenObject.Completed:Connect(function()
+        if ActiveTweens[instance] == activeForInstance then
+            for property in pairs(properties or {}) do
+                if activeForInstance[property] == tweenObject then
+                    activeForInstance[property] = nil
+                end
+            end
+        end
+    end)
+
     tweenObject:Play()
     return tweenObject
 end
@@ -556,6 +674,7 @@ end
 
 local function createLoadingScreen(options)
     options = options or {}
+    local theme = currentTheme()
 
     local gui = new("ScreenGui", {
         Name = "SyntraUILoading",
@@ -569,77 +688,96 @@ local function createLoadingScreen(options)
     local overlay = new("Frame", {
         Parent = gui,
         BackgroundColor3 = Color3.fromRGB(5, 7, 12),
-        BackgroundTransparency = 0.08,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1)
     })
 
-    gradient(Color3.fromRGB(7, 10, 18), Color3.fromRGB(24, 20, 38), 35).Parent = overlay
+    local overlayGradient = gradient(Color3.fromRGB(7, 10, 18), Color3.fromRGB(24, 20, 38), 35)
+    overlayGradient.Parent = overlay
 
     local holder = new("Frame", {
         Parent = overlay,
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = currentTheme().Surface,
-        BackgroundTransparency = 0.1,
+        BackgroundColor3 = theme.Surface,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(360, 250)
+        Size = UDim2.fromOffset(360, 250),
+        ClipsDescendants = true
     }, {
         corner(18),
-        stroke(currentTheme().Stroke, 0.42, 1)
+        stroke(theme.Stroke, 0.42, 1)
     })
 
-    createShadow(holder, 60)
+    local holderScale = new("UIScale", {
+        Parent = holder,
+        Scale = 0.94
+    })
+
+    local holderShadow = createShadow(holder, 60)
+    holderShadow.ImageTransparency = 1
     padding(24, 24, 24, 24).Parent = holder
 
     local logoFrame = new("Frame", {
         Parent = holder,
         AnchorPoint = Vector2.new(0.5, 0),
-        BackgroundColor3 = currentTheme().SurfaceLight,
-        BackgroundTransparency = 0.18,
+        BackgroundColor3 = theme.SurfaceLight,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = UDim2.new(0.5, 0, 0, 10),
         Size = UDim2.fromOffset(86, 86),
         ZIndex = 2
     }, {
         corner(22),
-        stroke(currentTheme().Accent, 0.55, 1)
+        stroke(theme.Accent, 0.55, 1)
     })
 
-    gradient(currentTheme().Accent, currentTheme().AccentSecondary, 35, NumberSequence.new(0.65)).Parent = logoFrame
+    local logoGradient = gradient(theme.Accent, theme.AccentSecondary, 35, NumberSequence.new(0.65))
+    logoGradient.Parent = logoFrame
 
-    local image = tryCustomAsset(options.LoadingImage or options.Image or "SyntraUi.png")
+    local logoScale = new("UIScale", {
+        Parent = logoFrame,
+        Scale = 0.86
+    })
+
+    local image = resolveImageAsset(options.LoadingImage or options.Image or SYNTRA_LOGO_URL)
+    local logoImage
     if image ~= "" then
-        new("ImageLabel", {
+        logoImage = new("ImageLabel", {
             Parent = logoFrame,
             AnchorPoint = Vector2.new(0.5, 0.5),
             BackgroundTransparency = 1,
             Image = image,
-            ImageTransparency = 0,
+            ImageTransparency = 1,
             Position = UDim2.fromScale(0.5, 0.5),
             ScaleType = Enum.ScaleType.Fit,
             Size = UDim2.fromOffset(58, 58),
             ZIndex = 3
         })
     else
-        makeText(logoFrame, "S", 36, Enum.Font.GothamBold, currentTheme().Text, Enum.TextXAlignment.Center).Size = UDim2.fromScale(1, 1)
+        logoImage = makeText(logoFrame, "S", 36, Enum.Font.GothamBold, theme.Text, Enum.TextXAlignment.Center)
+        logoImage.Size = UDim2.fromScale(1, 1)
+        logoImage.TextTransparency = 1
     end
 
-    local title = makeText(holder, options.LoadingTitle or options.Name or "Syntra", 22, Enum.Font.GothamBold, currentTheme().Text, Enum.TextXAlignment.Center)
+    local title = makeText(holder, options.LoadingTitle or options.Name or "Syntra", 22, Enum.Font.GothamBold, theme.Text, Enum.TextXAlignment.Center)
     title.Position = UDim2.fromOffset(0, 118)
     title.Size = UDim2.new(1, 0, 0, 30)
+    title.TextTransparency = 1
     title.ZIndex = 2
 
-    local subtitle = makeText(holder, options.LoadingSubtitle or "Loading interface", 13, Enum.Font.GothamMedium, currentTheme().MutedText, Enum.TextXAlignment.Center)
+    local subtitle = makeText(holder, options.LoadingSubtitle or "Loading interface", 13, Enum.Font.GothamMedium, theme.MutedText, Enum.TextXAlignment.Center)
     subtitle.Position = UDim2.fromOffset(0, 150)
     subtitle.Size = UDim2.new(1, 0, 0, 20)
+    subtitle.TextTransparency = 1
     subtitle.ZIndex = 2
 
     local track = new("Frame", {
         Parent = holder,
         AnchorPoint = Vector2.new(0.5, 1),
-        BackgroundColor3 = currentTheme().SurfaceLight,
-        BackgroundTransparency = 0.2,
+        BackgroundColor3 = theme.SurfaceLight,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = UDim2.new(0.5, 0, 1, -22),
         Size = UDim2.new(1, -54, 0, 6),
@@ -650,27 +788,64 @@ local function createLoadingScreen(options)
 
     local fill = new("Frame", {
         Parent = track,
-        BackgroundColor3 = currentTheme().Accent,
+        BackgroundColor3 = theme.Accent,
         BorderSizePixel = 0,
         Size = UDim2.fromScale(0, 1),
         ZIndex = 3
     }, {
         corner(99),
-        gradient(currentTheme().Accent, currentTheme().AccentSecondary, 0)
+        gradient(theme.Accent, theme.AccentSecondary, 0)
     })
 
-    holder.Size = UDim2.fromOffset(340, 232)
-    holder.BackgroundTransparency = 1
-    overlay.BackgroundTransparency = 1
+    local alive = true
+    task.spawn(function()
+        while alive and gui.Parent do
+            tween(logoScale, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = 1.03 })
+            tween(logoGradient, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Rotation = 95 })
+            task.wait(0.9)
+            tween(logoScale, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Scale = 0.98 })
+            tween(logoGradient, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Rotation = 35 })
+            task.wait(0.9)
+        end
+    end)
 
-    tween(overlay, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.08 })
-    tween(holder, SPRING_TWEEN, { Size = UDim2.fromOffset(360, 250), BackgroundTransparency = 0.1 })
-    tween(fill, TweenInfo.new(0.75, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(1, 1) })
+    tween(overlay, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.08 })
+    tween(holder, SOFT_TWEEN, { BackgroundTransparency = 0.1 })
+    tween(holderScale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+    tween(holderShadow, SOFT_TWEEN, { ImageTransparency = 0.55 })
+    tween(logoFrame, SOFT_TWEEN, { BackgroundTransparency = 0.18 })
+    if logoImage:IsA("ImageLabel") then
+        tween(logoImage, SOFT_TWEEN, { ImageTransparency = 0 })
+    else
+        tween(logoImage, SOFT_TWEEN, { TextTransparency = 0 })
+    end
+    tween(logoScale, TweenInfo.new(0.44, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+    task.delay(0.08, function()
+        tween(title, SOFT_TWEEN, { TextTransparency = 0 })
+    end)
+    task.delay(0.14, function()
+        tween(subtitle, SOFT_TWEEN, { TextTransparency = 0 })
+        tween(track, SOFT_TWEEN, { BackgroundTransparency = 0.2 })
+    end)
+    tween(fill, TweenInfo.new(options.LoadingDuration or 0.9, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(1, 1) })
 
-    task.wait(options.LoadingDuration or 0.8)
-    tween(holder, DEFAULT_TWEEN, { Size = UDim2.fromOffset(350, 238), BackgroundTransparency = 1 })
-    tween(overlay, DEFAULT_TWEEN, { BackgroundTransparency = 1 })
-    task.delay(0.25, function()
+    task.wait(options.LoadingDuration or 0.9)
+    alive = false
+    tween(holderScale, SOFT_TWEEN, { Scale = 0.97 })
+    tween(holder, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    tween(holderShadow, SOFT_TWEEN, { ImageTransparency = 1 })
+    tween(logoFrame, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    tween(title, SOFT_TWEEN, { TextTransparency = 1 })
+    tween(subtitle, SOFT_TWEEN, { TextTransparency = 1 })
+    tween(track, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    tween(fill, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    if logoImage:IsA("ImageLabel") then
+        tween(logoImage, SOFT_TWEEN, { ImageTransparency = 1 })
+    else
+        tween(logoImage, SOFT_TWEEN, { TextTransparency = 1 })
+    end
+    tween(overlay, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    task.delay(0.32, function()
         gui:Destroy()
     end)
 end
@@ -745,7 +920,8 @@ function SyntraUI:CreateWindow(options)
         MinHeight = 420,
         Scale = 1,
         Loading = true,
-        LoadingDuration = 0.8,
+        LoadingDuration = 1.05,
+        LoadingImage = SYNTRA_LOGO_URL,
         ToggleKeybind = Enum.KeyCode.RightControl,
         SaveConfiguration = false,
         ConfigurationFolder = "Syntra",
@@ -782,6 +958,8 @@ function SyntraUI:CreateWindow(options)
     local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
     local width = clamp(options.Width, options.MinWidth, math.max(options.MinWidth, viewport.X - 60))
     local height = clamp(options.Height, options.MinHeight, math.max(options.MinHeight, viewport.Y - 60))
+    options.Width = width
+    options.Height = height
 
     local root = new("Frame", {
         Parent = gui,
@@ -803,6 +981,7 @@ function SyntraUI:CreateWindow(options)
         BackgroundColor3 = theme.Background,
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
         Size = UDim2.fromScale(1, 1),
         ZIndex = 2
     }, {
@@ -843,10 +1022,11 @@ function SyntraUI:CreateWindow(options)
         ZIndex = 4
     })
 
-    local contentHost = new("Frame", {
+    local contentHost = new("CanvasGroup", {
         Parent = main,
         BackgroundTransparency = 1,
         ClipsDescendants = true,
+        GroupTransparency = 0,
         Position = UDim2.fromOffset(218, 72),
         Size = UDim2.new(1, -218, 1, -72),
         ZIndex = 4
@@ -1093,19 +1273,42 @@ function Window:Toggle()
     self.Minimized = not self.Minimized
 
     if self.Minimized then
-        tween(self.Main, DEFAULT_TWEEN, { BackgroundTransparency = 1 })
-        tween(self.Shadow, DEFAULT_TWEEN, { ImageTransparency = 1 })
-        tween(self.Root, DEFAULT_TWEEN, { Size = UDim2.fromOffset(self.Root.AbsoluteSize.X, 72) })
-        task.delay(0.18, function()
-            if self.Minimized and self.Main then
-                self.Main.Visible = false
+        if self.ContentHost then
+            tween(self.ContentHost, FAST_TWEEN, { GroupTransparency = 1 })
+        end
+        tween(self.Sidebar, SOFT_TWEEN, { BackgroundTransparency = 1 })
+        tween(self.SidebarMask, SOFT_TWEEN, { BackgroundTransparency = 1 })
+        tween(self.Topbar, SOFT_TWEEN, { Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 72) })
+        tween(self.Root, SOFT_TWEEN, { Size = UDim2.fromOffset(self.Options.Width, 72) })
+        tween(self.Shadow, SOFT_TWEEN, { ImageTransparency = 0.68 })
+        task.delay(0.22, function()
+            if self.Minimized then
+                if self.ContentHost then
+                    self.ContentHost.Visible = false
+                end
+                if self.Sidebar then
+                    self.Sidebar.Visible = false
+                end
             end
         end)
     else
-        self.Main.Visible = true
-        tween(self.Main, DEFAULT_TWEEN, { BackgroundTransparency = 0.05 })
-        tween(self.Shadow, DEFAULT_TWEEN, { ImageTransparency = 0.55 })
-        tween(self.Root, SPRING_TWEEN, { Size = UDim2.fromOffset(self.Options.Width, self.Options.Height) })
+        if self.Sidebar then
+            self.Sidebar.Visible = true
+        end
+        if self.ContentHost then
+            self.ContentHost.Visible = true
+        end
+
+        tween(self.Root, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(self.Options.Width, self.Options.Height) })
+        tween(self.Topbar, SOFT_TWEEN, { Position = UDim2.fromOffset(218, 0), Size = UDim2.new(1, -218, 0, 72) })
+        tween(self.Sidebar, SOFT_TWEEN, { BackgroundTransparency = 0.1 })
+        tween(self.SidebarMask, SOFT_TWEEN, { BackgroundTransparency = 0.1 })
+        tween(self.Shadow, SOFT_TWEEN, { ImageTransparency = 0.55 })
+        task.delay(0.08, function()
+            if not self.Minimized and self.ContentHost then
+                tween(self.ContentHost, SOFT_TWEEN, { GroupTransparency = 0 })
+            end
+        end)
     end
 end
 
@@ -1120,11 +1323,14 @@ function Window:Destroy()
         connection:Disconnect()
     end
 
-    tween(self.Root, DEFAULT_TWEEN, { Size = UDim2.fromOffset(self.Root.AbsoluteSize.X - 24, self.Root.AbsoluteSize.Y - 24) })
-    tween(self.Main, DEFAULT_TWEEN, { BackgroundTransparency = 1 })
-    tween(self.Shadow, DEFAULT_TWEEN, { ImageTransparency = 1 })
+    if self.ContentHost then
+        tween(self.ContentHost, FAST_TWEEN, { GroupTransparency = 1 })
+    end
+    tween(self.Root, SOFT_TWEEN, { Size = UDim2.fromOffset(math.max(0, self.Root.AbsoluteSize.X - 28), math.max(0, self.Root.AbsoluteSize.Y - 28)) })
+    tween(self.Main, SOFT_TWEEN, { BackgroundTransparency = 1 })
+    tween(self.Shadow, SOFT_TWEEN, { ImageTransparency = 1 })
 
-    task.delay(0.24, function()
+    task.delay(0.32, function()
         if self.ScreenGui then
             self.ScreenGui:Destroy()
         end
@@ -1248,6 +1454,7 @@ function Window:CreateTab(name, icon)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         CanvasSize = UDim2.fromOffset(0, 0),
+        Position = UDim2.fromOffset(0, 0),
         ScrollBarImageColor3 = theme.Accent,
         ScrollBarThickness = 3,
         Size = UDim2.fromScale(1, 1),
@@ -1310,11 +1517,13 @@ function Window:SelectTab(tab)
 
     if old then
         old.Page.Visible = false
+        old.Page.Position = UDim2.fromOffset(0, 0)
         tween(old.Button, DEFAULT_TWEEN, { BackgroundTransparency = 0.42 })
         tween(old.Accent, DEFAULT_TWEEN, { BackgroundTransparency = 1 })
         tween(old.Label, DEFAULT_TWEEN, { TextColor3 = currentTheme().MutedText })
     end
 
+    tab.Page.Position = UDim2.fromOffset(10, 0)
     tab.Page.Visible = true
     tab.Page.CanvasPosition = Vector2.new(0, 0)
     self.PageTitle.Text = tostring(tab.Name)
@@ -1323,6 +1532,7 @@ function Window:SelectTab(tab)
     tween(tab.Button, DEFAULT_TWEEN, { BackgroundTransparency = 0.08 })
     tween(tab.Accent, DEFAULT_TWEEN, { BackgroundTransparency = 0 })
     tween(tab.Label, DEFAULT_TWEEN, { TextColor3 = currentTheme().Text })
+    tween(tab.Page, SOFT_TWEEN, { Position = UDim2.fromOffset(0, 0) })
 end
 
 function Window:CreateSettingsTab()
@@ -1483,14 +1693,18 @@ end
 function Section:SetCollapsed(collapsed)
     self.Collapsed = collapsed and true or false
 
-    if self.Body then
-        self.Body.Visible = not self.Collapsed
-    end
-
     if self.Instance then
         if self.Collapsed then
             tween(self.Instance, DEFAULT_TWEEN, { Size = UDim2.new(1, -8, 0, 28) })
+            task.delay(0.2, function()
+                if self.Collapsed and self.Body then
+                    self.Body.Visible = false
+                end
+            end)
         else
+            if self.Body then
+                self.Body.Visible = true
+            end
             local height = self.Body and (self.Body.AbsoluteSize.Y + 34) or 60
             tween(self.Instance, DEFAULT_TWEEN, { Size = UDim2.new(1, -8, 0, height) })
         end
@@ -1997,7 +2211,7 @@ function Section:CreateSlider(options)
     end
 
     function control:SetValue(value, fireCallback)
-        setFlag(self, snap(tonumber(value) or minValue))
+        setFlag(self, snap(tonumber(value) or minValue), not dragging)
         self:Refresh()
         if fireCallback ~= false then
             protect(self.Callback, self.Value)
@@ -2023,6 +2237,9 @@ function Section:CreateSlider(options)
 
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and control.Flag then
+                control.Window:SaveConfiguration()
+            end
             dragging = false
         end
     end)
@@ -2125,9 +2342,25 @@ function Section:CreateDropdown(options)
 
     local function resizeMenu()
         local height = control.Open and math.min(#control.Options * 32, 192) or 0
-        card.Size = UDim2.new(1, 0, 0, control.Open and (58 + height) or 50)
-        menu.Visible = control.Open
-        tween(menu, DEFAULT_TWEEN, { Size = UDim2.fromOffset(140, height) })
+        local targetCardHeight = control.Open and (58 + height) or 50
+        if control.Open then
+            menu.Visible = true
+            menu.BackgroundTransparency = 0.02
+        end
+
+        tween(card, SOFT_TWEEN, { Size = UDim2.new(1, 0, 0, targetCardHeight) })
+        tween(menu, SOFT_TWEEN, {
+            Size = UDim2.fromOffset(140, height),
+            BackgroundTransparency = control.Open and 0.02 or 1
+        })
+
+        if not control.Open then
+            task.delay(0.26, function()
+                if not control.Open and menu then
+                    menu.Visible = false
+                end
+            end)
+        end
     end
 
     local function rebuild()
@@ -2144,6 +2377,7 @@ function Section:CreateDropdown(options)
             row.TextSize = 12
             row.ZIndex = 31
             row.TextColor3 = isSelected(option) and currentTheme().Accent or currentTheme().Text
+            bindHover(row, { BackgroundTransparency = 1 }, { BackgroundTransparency = 0.82 })
 
             row.MouseButton1Click:Connect(function()
                 if control.Enabled == false then
